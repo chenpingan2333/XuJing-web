@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 叙境（Xujing）Seed Script
  */
 
@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { users } from "@/db/schema/users";
 import { characters } from "@/db/schema/characters";
 import { uuidv7 } from "@/db/helpers";
+import bcrypt from "bcryptjs";
 
 async function seed() {
   // Idempotent guard
@@ -20,12 +21,16 @@ async function seed() {
 
   console.log("🌱 开始填充测试数据...\n");
 
+  const adminHash = await bcrypt.hash("admin123", 12);
+  const userHash = await bcrypt.hash("test123", 12);
+
   const adminId = uuidv7();
   const [admin] = await db
     .insert(users)
     .values({
       id: adminId,
       email: "admin@xujing.local",
+      passwordHash: adminHash,
       nickname: "管理员",
       role: "ADMIN",
       status: "ACTIVE",
@@ -33,7 +38,7 @@ async function seed() {
       hasPurchasedVip: false,
     })
     .returning();
-  console.log("✅ Admin:", admin!.email);
+  console.log("✓ Admin:", admin!.email);
 
   const userId = uuidv7();
   const [user] = await db
@@ -41,6 +46,7 @@ async function seed() {
     .values({
       id: userId,
       email: "test@xujing.local",
+      passwordHash: userHash,
       nickname: "测试用户",
       role: "USER",
       status: "ACTIVE",
@@ -50,7 +56,7 @@ async function seed() {
       hasPurchasedVip: true,
     })
     .returning();
-  console.log("✅ Test User (VIP):", user!.email);
+  console.log("✓ Test User (VIP):", user!.email);
 
   var o1 = await db.insert(characters).values({
     name: "小叙",
@@ -61,7 +67,7 @@ async function seed() {
     isOfficial: true,
     version: 1,
   }).returning();
-  console.log("✅ Official Character:", o1[0]!.name);
+  console.log("✓ Official Character:", o1[0]!.name);
 
   var o2 = await db.insert(characters).values({
     name: "阿境",
@@ -72,7 +78,7 @@ async function seed() {
     isOfficial: true,
     version: 1,
   }).returning();
-  console.log("✅ Official Character:", o2[0]!.name);
+  console.log("✓ Official Character:", o2[0]!.name);
 
   var c1 = await db.insert(characters).values({
     userId: user!.id,
@@ -82,7 +88,7 @@ async function seed() {
     isOfficial: false,
     version: 1,
   }).returning();
-  console.log("✅ User Character 1:", c1[0]!.name);
+  console.log("✓ User Character 1:", c1[0]!.name);
 
   var c2 = await db.insert(characters).values({
     userId: user!.id,
@@ -93,7 +99,7 @@ async function seed() {
     isOfficial: false,
     version: 1,
   }).returning();
-  console.log("✅ User Character 2:", c2[0]!.name);
+  console.log("✓ User Character 2:", c2[0]!.name);
 
   var c3 = await db.insert(characters).values({
     userId: user!.id,
@@ -104,17 +110,16 @@ async function seed() {
     isOfficial: false,
     version: 1,
   }).returning();
-  console.log("✅ User Character 3:", c3[0]!.name);
+  console.log("✓ User Character 3:", c3[0]!.name);
 
   console.log("\n🎉 数据填充完成！");
-  console.log("   Admin: admin@xujing.local");
-  console.log("   User:  test@xujing.local (VIP)");
+  console.log("   Admin: admin@xujing.local / admin123");
+  console.log("   User:  test@xujing.local / test123 (VIP)");
   console.log("   2 Official + 3 User Characters");
   process.exit(0);
 }
 
 seed().catch((err) => {
-  console.error("❌ Seed 失败:", err);
+  console.error("✗ Seed 失败:", err);
   process.exit(1);
 });
-

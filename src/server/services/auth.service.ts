@@ -3,10 +3,10 @@
  *
  * 密码登录 + 注册（captcha 防刷 + 邮箱验证）+ 原验证码登录保留。
  * 邮件验证码发送依赖 Resend API key（通过 getEnv() 安全读取）。
+ * Captcha 使用自绘 SVG，零外部依赖。
  */
 
 import bcrypt from "bcryptjs";
-import svgCaptcha from "svg-captcha";
 import { createAccessToken } from "../auth/jwt";
 import {
   setRefreshToken,
@@ -37,18 +37,22 @@ export interface AuthError {
   status: number;
 }
 
-// ─── Captcha ───
+// ─── Captcha (self-drawn SVG, zero dependency) ───
 
 export async function generateCaptcha(): Promise<{ id: string; svg: string }> {
-  const captcha = svgCaptcha.createMathExpr({
-    mathMin: 1,
-    mathMax: 20,
-    mathOperator: "+",
-  });
+  const a = Math.floor(Math.random() * 15) + 1;
+  const b = Math.floor(Math.random() * 15) + 1;
+  const answer = String(a + b);
   const id = crypto.randomUUID();
-  await setCaptcha(id, captcha.text);
-  console.log("[auth:captcha] generated id:", id, "| answer:", captcha.text);
-  return { id, svg: captcha.data };
+  await setCaptcha(id, answer);
+  console.log("[auth:captcha] generated id:", id, "| answer:", answer);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="70" viewBox="0 0 200 70">
+  <rect width="200" height="70" fill="#fafaf9" rx="10"/>
+  <rect x="2" y="2" width="196" height="66" fill="none" stroke="#e7e5e4" stroke-width="1.5" rx="9"/>
+  <text x="100" y="32" text-anchor="middle" font-family="Georgia,serif" font-size="14" fill="#a8a29e">请计算下方算式</text>
+  <text x="100" y="56" text-anchor="middle" font-family="Georgia,serif" font-size="22" font-weight="bold" fill="#1c1c1c">${a} + ${b} = ?</text>
+</svg>`;
+  return { id, svg };
 }
 
 // ─── Registration ───
@@ -68,20 +72,16 @@ export async function verifyCaptchaAndSendCode(
   const answer = await getCaptcha(captchaId);
   if (!answer) return { error: "图形验证码已过期，请重新获取", status: 400 };
 
-  // 大小写不敏感、去除空格比较
   if (answer.trim().toLowerCase() !== captchaText.trim().toLowerCase()) {
     await deleteCaptcha(captchaId);
     return { error: "图形验证码错误，请重新获取", status: 400 };
   }
 
-  // 验证通过，删除 captcha 防重放
   await deleteCaptcha(captchaId);
 
-  // 检查邮箱是否已注册
   const existing = await userRepository.findByEmail(normalized);
   if (existing) return { error: "该邮箱已注册，请直接登录", status: 409 };
 
-  // 发送邮箱验证码
   return sendVerificationCode(normalized);
 }
 
@@ -95,22 +95,18 @@ export async function registerWithCode(
 ): Promise<{ message: string } | AuthError> {
   const normalized = email.trim().toLowerCase();
 
-  // 校验邮箱验证码
   const stored = await getVerificationCode(normalized);
   if (!stored || stored !== code) {
     return { error: "邮箱验证码错误或已过期", status: 400 };
   }
   await deleteVerificationCode(normalized);
 
-  // 强密码校验
   if (password.length < 6) return { error: "密码至少 6 位", status: 400 };
   if (!/[a-zA-Z]/.test(password)) return { error: "密码需包含字母", status: 400 };
   if (!/[0-9]/.test(password)) return { error: "密码需包含数字", status: 400 };
 
-  // bcrypt 哈希
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
-  // 创建用户
   await userRepository.create({
     email: normalized,
     passwordHash,
@@ -126,9 +122,6 @@ export async function registerWithCode(
 
 // ─── Password Login ───
 
-/**
- * 密码登录：bcrypt 比对 → 签发 token pair。
- */
 export async function loginWithPassword(
   email: string,
   password: string
@@ -148,10 +141,6 @@ export async function loginWithPassword(
 
 // ─── Verification Code Login (retained) ───
 
-/**
- * 发送验证码。
- * 优先使用 Resend 邮件服务；未配置 RESEND_API_KEY 时降级为控制台输出。
- */
 export async function sendVerificationCode(email: string): Promise<AuthError | null> {
   const normalized = email.trim().toLowerCase();
   if (!normalized.includes("@")) return { error: "Invalid email", status: 400 };
@@ -204,9 +193,6 @@ export async function sendVerificationCode(email: string): Promise<AuthError | n
   return null;
 }
 
-/**
- * 验证码登录：校验 code → 查找或创建用户 → 签发 token pair。
- */
 export async function loginWithCode(email: string, code: string): Promise<TokenPair | AuthError> {
   const normalized = email.trim().toLowerCase();
 
@@ -221,7 +207,6 @@ export async function loginWithCode(email: string, code: string): Promise<TokenP
 
   let user = await userRepository.findByEmail(normalized);
   if (!user) {
-    // 纯验证码登录不再创建用户 — 用户必须通过注册流程
     return { error: "该邮箱未注册，请先注册", status: 404 };
   }
 
@@ -233,9 +218,6 @@ export async function loginWithCode(email: string, code: string): Promise<TokenP
   return issueTokens(user.id, user.role);
 }
 
-/**
- * Dev-only：跳过验证码，直接为已知测试用户签发 token。
- */
 export async function devLogin(email: string): Promise<TokenPair | AuthError> {
   const normalized = email.trim().toLowerCase();
   const user = await userRepository.findByEmail(normalized);
@@ -245,9 +227,6 @@ export async function devLogin(email: string): Promise<TokenPair | AuthError> {
   return issueTokens(user.id, user.role);
 }
 
-/**
- * 刷新 access token。
- */
 export async function refreshAccessToken(
   userId: string,
   refreshToken: string
@@ -266,9 +245,6 @@ export async function refreshAccessToken(
   return issueTokens(user.id, user.role);
 }
 
-/**
- * 登出：撤销 refresh token + 将当前 JTI 加入黑名单。
- */
 export async function logout(userId: string, jti: string): Promise<void> {
   await revokeRefreshToken(userId);
   if (jti) await blacklistJti(jti);
