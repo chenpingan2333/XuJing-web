@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+/* Safe Area CSS 变量 — 移动端适配 */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --nav-height: 56px;
+  --header-height: 56px;
+}
+
+/* 修复 100vh 移动端溢出 */
+html, body {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

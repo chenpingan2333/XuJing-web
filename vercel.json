@@ -1,0 +1,5 @@
+﻿{
+  "buildCommand": "pnpm run db:migrate && pnpm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs"
+}

@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "bug-localization": {
+      "source": "ArabelaTso/Skills-4-SE",
+      "sourceType": "github",
+      "skillPath": "skills/bug-localization/SKILL.md",
+      "computedHash": "fa157381210ef5cedf320f394c04099c22eda2fb022b95ecc159ae485cd5fca0"
+    },
+    "devops-infrastructure": {
+      "source": "CloudAI-X/claude-workflow-v2",
+      "sourceType": "github",
+      "skillPath": "skills/devops-infrastructure/SKILL.md",
+      "computedHash": "304b91570135abee2ff7bd06d7f00f53ae33e95c816e9d33a4819b5303e711ae"
+    },
+    "fullstack-architecture": {
+      "source": "thesaifalitai/claude-setup",
+      "sourceType": "github",
+      "skillPath": "skills/fullstack-architecture/SKILL.md",
+      "computedHash": "c70380deb1a8b73ab77b8d7ab4975034f6c82a0b68ac7a4937caf09aba43a02e"
+    },
+    "postgres-drizzle": {
+      "source": "ccheney/robust-skills",
+      "sourceType": "github",
+      "skillPath": "skills/postgres-drizzle/SKILL.md",
+      "computedHash": "87c9f5d5b8706b71a67428656fad557641a622e73255df1ade843deb6c358aef"
+    },
+    "seo-technical-expert": {
+      "source": "boshi-xixixi/TraeSkill",
+      "sourceType": "github",
+      "skillPath": ".trae/skills/06_SEO_Technical/SKILL.md",
+      "computedHash": "1e7297e2bb32ff1a70aae7f98662013711d767cd08031b488d70af389d4d7f3b"
+    }
+  }
+}

@@ -1,0 +1,53 @@
+﻿# dependencies
+node_modules/
+.pnpm-store/
+
+# next.js
+.next/
+out/
+
+# build
+dist/
+
+# env
+.env
+.env.local
+.env.production
+
+# drizzle
+drizzle/meta/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# tunnel
+.cloudflared/
+start-tunnel.bat
+
+# test
+test-results/
+playwright-report/
+
+# vercel
+.vercel
+
+# logs
+*.log
+_dev_output.txt
+curl_output.txt
+
+# npm (using pnpm)
+package-lock.json
+
+# misc
+vfy_p6.js
+tests/_write_docs.js
+qc
+query
