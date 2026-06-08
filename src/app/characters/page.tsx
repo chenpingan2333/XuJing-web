@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/lib/use-auth";
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 interface CharacterRow {
@@ -13,9 +14,8 @@ interface CharacterRow {
 }
 
 export default function CharactersPage() {
-  const { user, loading, token, login } = useAuth();
-  const [email, setEmail] = useState("");
-  const [logging, setLogging] = useState(false);
+  const { user, loading, token } = useAuth();
+  const router = useRouter();
   const [fetching, setFetching] = useState(true);
   const [official, setOfficial] = useState<CharacterRow[]>([]);
   const [userChars, setUserChars] = useState<CharacterRow[]>([]);
@@ -23,6 +23,13 @@ export default function CharactersPage() {
   const isVip = user?.subscription === "vip";
   const charCount = userChars.length;
   const atLimit = !isVip && charCount >= 12;
+
+  // Redirect unauthenticated users to login
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/login");
+    }
+  }, [loading, user, router]);
 
   const fetchCharacters = useCallback(async () => {
     if (!token) return;
@@ -39,10 +46,10 @@ export default function CharactersPage() {
     setFetching(false);
   }, [token]);
 
-  useEffect(() => { fetchCharacters(); }, [fetchCharacters]);
+  useEffect(() => { if (user) fetchCharacters(); }, [fetchCharacters, user]);
 
-  // ── Loading ──
-  if (loading || fetching) {
+  // Loading / redirecting
+  if (loading || !user) {
     return (
       <div className="flex h-dvh items-center justify-center bg-stone-50">
         <div className="text-sm text-stone-300">加载中</div>
@@ -50,38 +57,16 @@ export default function CharactersPage() {
     );
   }
 
-  // ── Unauthenticated ──
-  if (!user) {
+  // Still fetching characters
+  if (fetching) {
     return (
-      <div className="flex h-dvh flex-col items-center justify-center gap-4 px-6 bg-stone-50">
-        <div className="text-lg font-medium text-neutral-900">叙境 Xujing</div>
-        <div className="text-sm text-stone-400">AI 恋爱陪伴平台</div>
-        <div className="mt-4 w-full max-w-xs space-y-3">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="输入邮箱登录"
-            className="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm text-neutral-900 placeholder:text-stone-300 outline-none focus:border-stone-400 transition-colors"
-          />
-          <button
-            onClick={async () => {
-              if (!email) return;
-              setLogging(true);
-              try { await login(email); } catch { /* ignore */ }
-              setLogging(false);
-            }}
-            disabled={logging || !email}
-            className="w-full rounded-xl bg-neutral-900 py-2.5 text-sm text-stone-50 disabled:opacity-50 transition-colors"
-          >
-            {logging ? "登录中..." : "登录"}
-          </button>
-        </div>
+      <div className="flex h-dvh items-center justify-center bg-stone-50">
+        <div className="text-sm text-stone-300">加载中</div>
       </div>
     );
   }
 
-  // ── Authenticated ──
+  // Authenticated + loaded
   return (
     <div className="flex h-dvh flex-col bg-stone-50">
       {/* Header */}
@@ -103,7 +88,6 @@ export default function CharactersPage() {
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto px-6 pb-24 space-y-8">
-        {/* Official Characters */}
         {official.length > 0 && (
           <section>
             <h2 className="text-xs font-medium text-stone-400 tracking-wide mb-3">
@@ -127,7 +111,6 @@ export default function CharactersPage() {
           </section>
         )}
 
-        {/* User Characters */}
         <section>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-xs font-medium text-stone-400 tracking-wide">
@@ -169,13 +152,11 @@ export default function CharactersPage() {
         </section>
       </div>
 
-      {/* Bottom Nav */}
       <BottomNav current="characters" />
     </div>
   );
 }
 
-// ─── Avatar ─────────────────────────────────────────
 function Avatar({ name, url, size }: { name: string; url?: string; size: "sm" | "lg" }) {
   const dims = size === "lg" ? "w-14 h-14 rounded-2xl" : "w-9 h-9 rounded-lg";
   return (
@@ -191,7 +172,6 @@ function Avatar({ name, url, size }: { name: string; url?: string; size: "sm" | 
   );
 }
 
-// ─── Bottom Nav ──────────────────────────────────────
 function BottomNav({ current }: { current: "characters" | "chat" | "shop" | "me" }) {
   const tabs = [
     { key: "characters", label: "角色", href: "/characters", icon: CharactersIcon },
@@ -221,7 +201,6 @@ function BottomNav({ current }: { current: "characters" | "chat" | "shop" | "me"
   );
 }
 
-// ─── Nav Icons ───────────────────────────────────────
 function CharactersIcon({ active }: { active: boolean }) {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
