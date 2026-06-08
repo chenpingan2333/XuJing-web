@@ -12,7 +12,7 @@ import IORedis from "ioredis";
 // ─── Shared interface ───
 
 export interface RedisClient {
-  set(key: string, value: string, ttlSeconds?: number): Promise<"OK" | null>;
+  set(key: string, value: string, ttlSeconds?: number): Promise<string | null>;
   get(key: string): Promise<string | null>;
   del(...keys: string[]): Promise<number>;
   incr(key: string): Promise<number>;

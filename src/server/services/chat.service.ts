@@ -45,7 +45,7 @@ export class ChatService {
 
     // VIP 无自备 API Key → 使用平台专属模型（DeepSeek V4 Flash）
     // 模型名不暴露给前端，统一显示"VIP专属模型"
-    let useVipPlatform = false;
+    let regenUseVipPlatform = false;
     let config: ApiConfig | null = null;
 
     if (isVip) {
@@ -53,7 +53,7 @@ export class ChatService {
       if (userConfig) {
         config = userConfig;
       } else {
-        useVipPlatform = true;
+        regenUseVipPlatform = true;
       }
     } else {
       const userConfig = await apiConfigRepository.findDefault(userId);
@@ -146,7 +146,7 @@ export class ChatService {
 
     let fullResponse = "";
     try {
-      const chatStream = useVipPlatform
+      const chatStream = regenUseVipPlatform
         ? providerGateway.vipPlatformChat(chatMessages, fullSystemPrompt)
         : providerGateway.chat(config!, chatMessages, fullSystemPrompt);
       for await (const event of chatStream) {
@@ -196,12 +196,12 @@ export class ChatService {
     let regenConfig: ApiConfig | null = null;
     if (isVip) {
       if (userConfig) {
-        regenConfig = userConfig;
+        regenConfig = userConfig ?? null;
       } else {
         regenUseVipPlatform = true;
       }
     } else {
-      regenConfig = userConfig;
+      regenConfig = userConfig ?? null;
     }
     if (!regenUseVipPlatform && !regenConfig) {
       yield { type: "error", message: "未配置 API 接口" };
@@ -236,9 +236,9 @@ export class ChatService {
 
     let fullResponse = "";
     try {
-      const chatStream = useVipPlatform
+      const chatStream = regenUseVipPlatform
         ? providerGateway.vipPlatformChat(chatMessages, fullSystemPrompt)
-        : providerGateway.chat(config!, chatMessages, fullSystemPrompt);
+        : providerGateway.chat(regenConfig!, chatMessages, fullSystemPrompt);
       for await (const event of chatStream) {
         if (event.type === "delta") {
           fullResponse += event.content;
@@ -278,12 +278,12 @@ export class ChatService {
     let sugConfig: ApiConfig | null = null;
     if (isVip) {
       if (userConfig) {
-        sugConfig = userConfig;
+        sugConfig = userConfig ?? null;
       } else {
         sugUseVipPlatform = true;
       }
     } else {
-      sugConfig = userConfig;
+      sugConfig = userConfig ?? null;
     }
     if (!sugUseVipPlatform && !sugConfig) return "";
 

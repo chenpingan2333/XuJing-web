@@ -41,11 +41,11 @@ export async function checkDatabaseHealth(): Promise<HealthStatus> {
       "star_diamond_transactions",
     ];
 
-    const result = await db.execute<{ tablename: string }>(
+    const result = await db.execute(
       sql`SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public'`
     );
 
-    const existingTables = result.map((r) => r.tablename);
+    const existingTables = result.rows.map((r) => r.tablename) as string[];
     status.tables = existingTables;
 
     const missing = expectedTables.filter((t) => !existingTables.includes(t));
@@ -59,7 +59,7 @@ export async function checkDatabaseHealth(): Promise<HealthStatus> {
       const migrationResult = await db.execute<{ count: string }>(
         sql`SELECT COUNT(*) as count FROM __drizzle_migrations`
       );
-      status.migrationSynced = Number(migrationResult[0]?.count ?? 0) > 0;
+      status.migrationSynced = Number(migrationResult.rows[0]?.count ?? 0) > 0;
     } catch {
       status.migrationSynced = false;
       status.error = (status.error ?? "") + " Migration table not found.";

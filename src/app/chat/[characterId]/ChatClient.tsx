@@ -24,7 +24,7 @@ interface MemoryStatus {
   limit: number;
 }
 
-type StreamAction = "send" | "regenerate" | "continue" | null;
+type StreamAction = "send" | "regenerate" | "continue" | "suggest" | null;
 
 // ─── SSE stream consumer (shared by send / regenerate / continue) ───
 async function consumeSSEStream(
