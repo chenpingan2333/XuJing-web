@@ -94,7 +94,8 @@ export async function loginWithCode(email: string, code: string): Promise<TokenP
   const normalized = email.trim().toLowerCase();
 
   const stored = await getVerificationCode(normalized);
-  console.log("[auth:login] email:", normalized, "| submitted code:", code, "| stored code:", stored);
+  console.log("[auth:login] email:", normalized, "| submitted:", JSON.stringify(code), "| stored:", JSON.stringify(stored));
+  console.log("[auth:login] typeof stored:", typeof stored, "typeof code:", typeof code, "strict:", stored !== code);
   if (!stored || stored !== code) {
     return { error: "Invalid or expired verification code", status: 401 };
   }
