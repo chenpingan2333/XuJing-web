@@ -99,6 +99,7 @@ export async function loginWithCode(email: string, code: string): Promise<TokenP
     return { error: "Invalid or expired verification code", status: 401 };
   }
 
+  console.log("[auth:login] Code verified for:", normalized);
   await deleteVerificationCode(normalized);
 
   let user = await userRepository.findByEmail(normalized);
@@ -116,6 +117,7 @@ export async function loginWithCode(email: string, code: string): Promise<TokenP
     return { error: "Account suspended", status: 403 };
   }
 
+  console.log("[auth:login] Issuing tokens for userId:", user.id);
   return issueTokens(user.id, user.role);
 }
 
@@ -127,6 +129,7 @@ export async function devLogin(email: string): Promise<TokenPair | AuthError> {
   const user = await userRepository.findByEmail(normalized);
   if (!user) return { error: "User not found", status: 404 };
   if (user.status === "BANNED") return { error: "Account suspended", status: 403 };
+  console.log("[auth:login] Issuing tokens for userId:", user.id);
   return issueTokens(user.id, user.role);
 }
 
@@ -147,6 +150,7 @@ export async function refreshAccessToken(
   if (!user) return { error: "User not found", status: 401 };
   if (user.status === "BANNED") return { error: "Account suspended", status: 403 };
 
+  console.log("[auth:login] Issuing tokens for userId:", user.id);
   return issueTokens(user.id, user.role);
 }
 
