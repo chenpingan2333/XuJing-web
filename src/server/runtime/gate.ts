@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Runtime Gate — Startup Barrier
  *
  * Blocks API requests until DB + Redis + ENV are ready.

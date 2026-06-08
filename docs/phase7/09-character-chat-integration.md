@@ -1,4 +1,4 @@
-﻿# 09 — Character → Chat Integration Design
+# 09 — Character → Chat Integration Design
 
 > **Phase 7.2 Design Freeze** | **Date**: 2026-06-08
 > **Status**: Design Only — No Implementation

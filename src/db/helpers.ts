@@ -1,4 +1,4 @@
-﻿import { randomBytes } from "crypto";
+import { randomBytes } from "crypto";
 
 /** Generate RFC 9562 compliant UUID v7 */
 export function uuidv7(): string {

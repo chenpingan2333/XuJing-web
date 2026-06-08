@@ -1,4 +1,4 @@
-﻿import type { ChatEvent } from "@/server/services/provider-gateway";
+import type { ChatEvent } from "@/server/services/provider-gateway";
 
 export function sseResponse(generator: AsyncGenerator<ChatEvent>): Response {
   const encoder = new TextEncoder();

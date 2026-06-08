@@ -1,4 +1,4 @@
-﻿import { db } from "@/db";
+import { db } from "@/db";
 import { messages } from "@/db/schema/messages";
 import { eq, and, desc } from "drizzle-orm";
 

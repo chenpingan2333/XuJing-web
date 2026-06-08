@@ -1,4 +1,4 @@
-﻿# 12 — Phase 7.2 Final Acceptance
+# 12 — Phase 7.2 Final Acceptance
 
 > **Phase 7.2 Implementation** | **Date**: 2026-06-08
 > **TypeScript**: PASS — 0 errors in phase7.2 code

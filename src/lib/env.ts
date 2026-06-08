@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 
 /**
  * 环境变量 Schema — Phase 3.6 运行时校验

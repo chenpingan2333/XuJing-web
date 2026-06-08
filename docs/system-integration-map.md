@@ -1,4 +1,4 @@
-﻿# System Integration Map — Auth & Security
+# System Integration Map — Auth & Security
 
 > **Phase**: 4.0 — Auth & Security Architecture Freeze
 > **Date**: 2026-06-07

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 叙境（Xujing）Database Enums
  *
  * 基于 Database Design Constraints Report V1.2

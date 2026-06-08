@@ -1,4 +1,4 @@
-﻿# API Auth Layer Design
+# API Auth Layer Design
 
 > **Phase**: 4.0 — Auth & Security Architecture Freeze
 > **Date**: 2026-06-07

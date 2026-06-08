@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Redis Rate Limiter — Phase 5 (Vercel Serverless)
  *
  * 基于统一 Redis 抽象层的固定窗口速率限制。

@@ -1,4 +1,4 @@
-﻿/** API 层通用类型 */
+/** API 层通用类型 */
 
 import type { ApiResponse } from "@/app/api/_base/response";
 

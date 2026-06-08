@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Auth Context — Phase 4.2 Strict Auth
  *
  * Extracts auth context from middleware-injected request headers.

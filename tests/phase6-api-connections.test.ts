@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Phase 6.1 — API Connection System 集成测试
  *
  * 运行方式: npx tsx tests/phase6-api-connections.test.ts

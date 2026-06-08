@@ -1,4 +1,4 @@
-﻿# 叙境 (Xujing) — Skill Governance V1
+# 叙境 (Xujing) — Skill Governance V1
 
 > **版本**: V1.0 | **日期**: 2026-06-08
 > **适用范围**: Phase 0–9.6 全部开发任务

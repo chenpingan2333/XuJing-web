@@ -1,4 +1,4 @@
-﻿/**
+/**
  * GET /api/chat/[characterId] — Chat History
  *
  * 返回当前用户与指定角色的扁平历史消息（最新在前）。

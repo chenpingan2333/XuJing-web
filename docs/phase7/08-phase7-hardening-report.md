@@ -1,4 +1,4 @@
-﻿# 08 — Phase 7.1 Hardening Report
+# 08 — Phase 7.1 Hardening Report
 
 > **Phase 7.1 Final Hardening** | **Date**: 2026-06-08
 > **TypeScript**: PASS — 0 errors in hardened code

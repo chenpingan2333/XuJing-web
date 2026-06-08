@@ -1,4 +1,4 @@
-﻿# 20 — Architecture Lock V1: Implementation Readiness Review
+# 20 — Architecture Lock V1: Implementation Readiness Review
 
 > **Phase 9.6 — Final Architecture Freeze** | **Date**: 2026-06-08
 > **Status**: Architecture Lock

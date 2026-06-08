@@ -1,4 +1,4 @@
-﻿import { neon } from "@neondatabase/serverless";
+import { neon } from "@neondatabase/serverless";
 import { getRedis } from "@/server/redis/client";
 import { getEnv } from "@/lib/env";
 

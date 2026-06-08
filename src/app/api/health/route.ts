@@ -1,4 +1,4 @@
-﻿import { checkInfra } from "@/server/services/infra-health";
+import { checkInfra } from "@/server/services/infra-health";
 import { jsonOk, jsonErr } from "../_base/response";
 
 /**

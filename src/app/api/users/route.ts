@@ -1,4 +1,4 @@
-﻿import { jsonOk } from "../_base/response";
+import { jsonOk } from "../_base/response";
 import { requireAuth } from "../_base/auth";
 
 export async function GET(req: Request) {

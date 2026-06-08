@@ -1,4 +1,4 @@
-﻿# 05 — Character Validation Rules
+# 05 — Character Validation Rules
 
 > **Phase 7 Design Freeze** | **Updated**: 2026-06-08
 > **Companion**: [01-character-architecture.md](./01-character-architecture.md), [03-character-page-design.md](./03-character-page-design.md)

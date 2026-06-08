@@ -1,4 +1,4 @@
-﻿import type { AuthUser } from "@/lib/auth";
+import type { AuthUser } from "@/lib/auth";
 
 export type { AuthUser };
 

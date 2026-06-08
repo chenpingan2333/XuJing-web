@@ -1,4 +1,4 @@
-﻿# 15 — Chat API Specification
+# 15 — Chat API Specification
 
 > **Phase 8 Design Freeze** | **Date**: 2026-06-08
 > **Status**: Design Only — No Implementation

@@ -1,4 +1,4 @@
-﻿# 18 — Phase 9 Migration Plan (Memory-First Refactoring)
+# 18 — Phase 9 Migration Plan (Memory-First Refactoring)
 
 > **Phase 9 Design Freeze** | **Date**: 2026-06-08
 > **Status**: Design Only — No Implementation

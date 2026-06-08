@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Middleware — Phase 4.2 Strict Auth
  *
  * Route-level enforcement:

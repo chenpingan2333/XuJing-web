@@ -1,4 +1,4 @@
-﻿# Security Threat Model
+# Security Threat Model
 
 > **Phase**: 4.0 — Auth & Security Architecture Freeze
 > **Date**: 2026-06-07

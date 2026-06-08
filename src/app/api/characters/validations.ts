@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Character Validation Schemas — Phase 7.1
  *
  * Zod 验证规则，严格遵循 05-character-validation-rules.md。

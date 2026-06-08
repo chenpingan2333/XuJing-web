@@ -1,4 +1,4 @@
-﻿/**
+/**
  * CharacterService — Phase 7.2
  *
  * 职责: 角色 CRUD、导入/导出、配额控制、权限校验。

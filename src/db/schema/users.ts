@@ -1,4 +1,4 @@
-﻿/**
+/**
  * users 表 — V1.2
  *
  * role={USER, ADMIN}，VIP 由 vip_expires_at 表达。

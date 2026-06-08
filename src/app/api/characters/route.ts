@@ -1,4 +1,4 @@
-﻿/**
+/**
  * GET  /api/characters — 列表（官方 + 用户角色）
  * POST /api/characters — 创建角色
  *

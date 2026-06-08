@@ -1,4 +1,4 @@
-﻿/**
+/**
  * API Response 标准化格式 — Phase 3.6
  *
  * 所有 API 输出必须经过 jsonOk / jsonErr。

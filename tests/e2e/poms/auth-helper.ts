@@ -1,4 +1,4 @@
-﻿import { Page } from "@playwright/test";
+import { Page } from "@playwright/test";
 
 const TEST_USER = {
   userId: "test-e2e-user-001",

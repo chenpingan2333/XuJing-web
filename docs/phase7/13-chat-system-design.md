@@ -1,4 +1,4 @@
-﻿# 13 — Chat System Design
+# 13 — Chat System Design
 
 > **Phase 8 Design Freeze** | **Date**: 2026-06-08
 > **Status**: Design Only — No Implementation

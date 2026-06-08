@@ -1,4 +1,4 @@
-﻿/**
+/**
  * conversations 表 — Phase 9
  *
  * 会话容器：User 1:N Conversation N:1 Character。

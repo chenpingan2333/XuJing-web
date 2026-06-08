@@ -1,4 +1,4 @@
-﻿# 06 — Phase 7.1 Final Acceptance Review
+# 06 — Phase 7.1 Final Acceptance Review
 
 > **Phase 7.1 Character System** | **Date**: 2026-06-08
 > **Auditor**: Automated Code Audit

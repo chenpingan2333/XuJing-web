@@ -1,4 +1,4 @@
-﻿/**
+/**
  * GET    /api/characters/[id]       — 详情
  * PUT    /api/characters/[id]       — 更新
  * DELETE /api/characters/[id]       — 删除

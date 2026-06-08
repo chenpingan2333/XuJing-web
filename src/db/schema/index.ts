@@ -1,4 +1,4 @@
-﻿export { users } from "./users";
+export { users } from "./users";
 export { characters } from "./characters";
 export { messages } from "./messages";
 export { memories } from "./memories";

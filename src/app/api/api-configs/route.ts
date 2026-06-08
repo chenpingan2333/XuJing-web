@@ -1,4 +1,4 @@
-﻿/**
+/**
  * GET  /api/api-configs — 列表
  * POST /api/api-configs — 创建
  *

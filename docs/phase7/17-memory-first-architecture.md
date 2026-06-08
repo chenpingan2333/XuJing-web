@@ -1,4 +1,4 @@
-﻿# 17 — Memory-First Chat Architecture Refactoring
+# 17 — Memory-First Chat Architecture Refactoring
 
 > **Phase 9 Design Freeze** | **Date**: 2026-06-08
 > **Status**: Design Only — No Implementation

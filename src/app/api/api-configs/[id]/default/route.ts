@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PUT /api/api-configs/[id]/default — 设为默认
  *
  * Phase 6.1 — 事务内先清除所有默认再设置目标

@@ -1,4 +1,4 @@
-﻿# Architecture Audit Report
+# Architecture Audit Report
 
 > **审计日期**: 2026-06-08
 > **审计范围**: Phase 0 ~ Phase 9 全部设计文档 (31 份) + 全部源代码

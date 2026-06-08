@@ -1,4 +1,4 @@
-﻿# Architecture Index — Single Source of Truth
+# Architecture Index — Single Source of Truth
 
 > **更新时间**: 2026-06-08
 > **维护规则**: 每次文档新增/修订后，必须同步更新本索引

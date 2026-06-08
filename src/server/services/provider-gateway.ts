@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ProviderGateway — 统一 AI Provider 路由层
  *
  * 职责:

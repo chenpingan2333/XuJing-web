@@ -1,4 +1,4 @@
-﻿# 11 — Phase 7.2 Acceptance Criteria
+# 11 — Phase 7.2 Acceptance Criteria
 
 > **Phase 7.2 Design Freeze** | **Date**: 2026-06-08
 > **Purpose**: Define audit criteria for Phase 7.2 implementation review.

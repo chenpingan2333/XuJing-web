@@ -1,4 +1,4 @@
-﻿# 19 — Memory Truth Layer Architecture
+# 19 — Memory Truth Layer Architecture
 
 > **Phase 9.5 Design Freeze** | **Date**: 2026-06-08
 > **Status**: Design Only — No Implementation

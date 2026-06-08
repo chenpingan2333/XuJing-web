@@ -1,4 +1,4 @@
-﻿# 10 — Character Technical Debt Audit
+# 10 — Character Technical Debt Audit
 
 > **Phase 7.2 Design Freeze** | **Date**: 2026-06-08
 > **Status**: Design Only — No Implementation

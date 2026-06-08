@@ -1,4 +1,4 @@
-﻿# Phase 6.2 — API Connection System Final Acceptance
+# Phase 6.2 — API Connection System Final Acceptance
 
 > **Date**: 2026-06-07 | **Status**: Final
 > **Reviewer**: Codex (code-reviewer, debugging-wizard, test-master, fullstack-guardian)

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * API Config Validation Schemas — Phase 6.1
  *
  * Zod 验证规则，严格遵循 05-provider-validation-rules.md。

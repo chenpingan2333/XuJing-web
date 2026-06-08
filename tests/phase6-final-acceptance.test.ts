@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Phase 6.2 — API Connection System Final Acceptance Test
  *
  * 运行: npx tsx tests/phase6-final-acceptance.test.ts

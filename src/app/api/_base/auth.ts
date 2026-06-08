@@ -1,4 +1,4 @@
-﻿/**
+/**
  * API Route Auth Helper — Phase 4.2 Strict Auth
  *
  * Middleware 已完成 JWT 验证 + JTI 黑名单检查，通过请求头传递用户上下文。

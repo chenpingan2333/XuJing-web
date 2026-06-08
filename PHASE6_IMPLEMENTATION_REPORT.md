@@ -1,4 +1,4 @@
-﻿# Phase 6.1 — API Connection System Implementation Report
+# Phase 6.1 — API Connection System Implementation Report
 
 > **Date**: 2026-06-07 | **Status**: Complete
 > **Branch**: current | **Target**: Phase 6.1

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * POST /api/api-configs/[id]/test — 测试连接
  *
  * Phase 6.1 — 归属校验 + ProviderGateway.testConnection

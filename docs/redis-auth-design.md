@@ -1,4 +1,4 @@
-﻿# Redis Auth Design
+# Redis Auth Design
 
 > **Phase**: 4.0 — Auth & Security Architecture Freeze
 > **Date**: 2026-06-07

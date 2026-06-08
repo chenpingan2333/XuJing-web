@@ -1,4 +1,4 @@
-﻿# 14 — Chat UI Specification
+# 14 — Chat UI Specification
 
 > **Phase 8 Design Freeze** | **Date**: 2026-06-08
 > **Status**: Design Only — No Implementation

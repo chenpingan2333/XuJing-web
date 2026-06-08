@@ -1,4 +1,4 @@
-﻿/**
+/**
  * GET    /api/api-configs/[id] — 详情
  * PUT    /api/api-configs/[id] — 更新
  * DELETE /api/api-configs/[id] — 删除

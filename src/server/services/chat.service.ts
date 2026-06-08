@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ChatService — Phase 7.2 Character Integration
  *
  * 职责: 消息发送、重新生成、继续回复、建议回复。

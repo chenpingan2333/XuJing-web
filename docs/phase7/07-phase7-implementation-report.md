@@ -1,4 +1,4 @@
-﻿# 07 — Phase 7.1 Implementation Report
+# 07 — Phase 7.1 Implementation Report
 
 > **Phase 7.1 Character System** | **Date**: 2026-06-08
 > **Status**: Implemented — TypeScript Clean

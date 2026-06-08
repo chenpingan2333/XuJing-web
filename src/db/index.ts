@@ -1,4 +1,4 @@
-﻿/**
+/**
  * DB Connection Lifecycle — Phase 5 (Vercel Serverless)
  *
  * 切换到 @neondatabase/serverless + drizzle-orm/neon-http，

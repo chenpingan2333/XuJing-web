@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Chat API Route — Phase 4.2 Tier Enforcement
  *
  * free user no API key → error

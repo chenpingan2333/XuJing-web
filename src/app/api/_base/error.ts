@@ -1,4 +1,4 @@
-﻿/**
+/**
  * API Error Handler 鈥?统一错误处理
  *
  * 用法：route handler 中 try/catch 调用 handleApiError。

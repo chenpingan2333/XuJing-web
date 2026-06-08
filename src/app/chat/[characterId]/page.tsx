@@ -1,4 +1,4 @@
-﻿import { ChatClient } from "./ChatClient";
+import { ChatClient } from "./ChatClient";
 
 export default async function ChatPage({
   params,

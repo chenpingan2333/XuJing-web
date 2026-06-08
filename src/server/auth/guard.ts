@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Auth Guard — Phase 4.2 Strict
  *
  * Strict mode: middleware passes user context via request headers.

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * GET /api/characters/[id]/export — 导出角色卡 JSON
  *
  * Phase 7.1 Hardened — Rate limit + requireAuth + CharacterError → jsonErr。

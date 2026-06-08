@@ -1,4 +1,4 @@
-﻿/**
+/**
  * POST /api/characters/import — 导入角色卡 JSON
  *
  * Phase 7.1 Hardened — 5MB 文件大小限制 + Zod 统一校验链。

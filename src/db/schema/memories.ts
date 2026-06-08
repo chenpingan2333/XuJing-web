@@ -1,4 +1,4 @@
-﻿/**
+/**
  * memories 表 — Phase 9 Extended
  *
  * 新增 category（FACT / PREFERENCE / EVENT）和 reference_ids（JSONB 溯源）。

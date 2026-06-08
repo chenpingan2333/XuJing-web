@@ -1,4 +1,4 @@
-﻿/**
+/**
  * MemoryEngine — Phase 9 LLM-based Memory Extraction
  *
  * 取代 Regex 提取方案，使用大模型从对话中提取结构化记忆。

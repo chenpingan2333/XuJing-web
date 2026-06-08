@@ -1,4 +1,4 @@
-﻿/**
+/**
  * JWT — Phase 4.1 Auth Core Skeleton
  *
  * 使用 jose 库（已安装）实现 HS256 JWT。

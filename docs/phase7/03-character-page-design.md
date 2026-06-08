@@ -1,4 +1,4 @@
-﻿# 03 — Character Page Design
+# 03 — Character Page Design
 
 > **Phase 7 Design Freeze** | **Updated**: 2026-06-08
 

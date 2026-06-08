@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Auth — Phase 4.2 Strict Auth + User Tier Enforcement
  *
  * AuthUser 类型：

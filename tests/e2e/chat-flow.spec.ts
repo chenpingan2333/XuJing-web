@@ -1,4 +1,4 @@
-﻿import { test, expect } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { ChatPage } from "./poms/chat-page";
 import { mockLogin, TEST_TOKEN } from "./poms/auth-helper";
 
