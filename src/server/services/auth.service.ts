@@ -1,10 +1,12 @@
-/**
- * AuthService — Phase 4.2
+﻿/**
+ * AuthService — V2.0
  *
- * 登录/刷新/登出 业务逻辑。
- * 邮件验证码的发送依赖 Resend API key（通过 getEnv() 安全读取）。
+ * 密码登录 + 注册（captcha 防刷 + 邮箱验证）+ 原验证码登录保留。
+ * 邮件验证码发送依赖 Resend API key（通过 getEnv() 安全读取）。
  */
 
+import bcrypt from "bcryptjs";
+import svgCaptcha from "svg-captcha";
 import { createAccessToken } from "../auth/jwt";
 import {
   setRefreshToken,
@@ -14,10 +16,15 @@ import {
   setVerificationCode,
   getVerificationCode,
   deleteVerificationCode,
+  setCaptcha,
+  getCaptcha,
+  deleteCaptcha,
 } from "../auth/redis-session";
 import { Resend } from "resend";
 import { userRepository } from "../repositories/user.repository";
 import { getEnv } from "@/lib/env";
+
+const BCRYPT_ROUNDS = 12;
 
 export interface TokenPair {
   userId: string;
@@ -29,6 +36,117 @@ export interface AuthError {
   error: string;
   status: number;
 }
+
+// ─── Captcha ───
+
+export async function generateCaptcha(): Promise<{ id: string; svg: string }> {
+  const captcha = svgCaptcha.createMathExpr({
+    mathMin: 1,
+    mathMax: 20,
+    mathOperator: "+",
+  });
+  const id = crypto.randomUUID();
+  await setCaptcha(id, captcha.text);
+  console.log("[auth:captcha] generated id:", id, "| answer:", captcha.text);
+  return { id, svg: captcha.data };
+}
+
+// ─── Registration ───
+
+/**
+ * 校验图形验证码 + 发送邮箱验证码。
+ * captcha 校验通过后立即删除，防止重放。
+ */
+export async function verifyCaptchaAndSendCode(
+  email: string,
+  captchaId: string,
+  captchaText: string
+): Promise<AuthError | null> {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized.includes("@")) return { error: "邮箱格式不正确", status: 400 };
+
+  const answer = await getCaptcha(captchaId);
+  if (!answer) return { error: "图形验证码已过期，请重新获取", status: 400 };
+
+  // 大小写不敏感、去除空格比较
+  if (answer.trim().toLowerCase() !== captchaText.trim().toLowerCase()) {
+    await deleteCaptcha(captchaId);
+    return { error: "图形验证码错误，请重新获取", status: 400 };
+  }
+
+  // 验证通过，删除 captcha 防重放
+  await deleteCaptcha(captchaId);
+
+  // 检查邮箱是否已注册
+  const existing = await userRepository.findByEmail(normalized);
+  if (existing) return { error: "该邮箱已注册，请直接登录", status: 409 };
+
+  // 发送邮箱验证码
+  return sendVerificationCode(normalized);
+}
+
+/**
+ * 注册：校验邮箱验证码 + 创建用户（含 bcrypt 密码哈希）。
+ */
+export async function registerWithCode(
+  email: string,
+  code: string,
+  password: string
+): Promise<{ message: string } | AuthError> {
+  const normalized = email.trim().toLowerCase();
+
+  // 校验邮箱验证码
+  const stored = await getVerificationCode(normalized);
+  if (!stored || stored !== code) {
+    return { error: "邮箱验证码错误或已过期", status: 400 };
+  }
+  await deleteVerificationCode(normalized);
+
+  // 强密码校验
+  if (password.length < 6) return { error: "密码至少 6 位", status: 400 };
+  if (!/[a-zA-Z]/.test(password)) return { error: "密码需包含字母", status: 400 };
+  if (!/[0-9]/.test(password)) return { error: "密码需包含数字", status: 400 };
+
+  // bcrypt 哈希
+  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+  // 创建用户
+  await userRepository.create({
+    email: normalized,
+    passwordHash,
+    role: "USER",
+    status: "ACTIVE",
+    starDiamonds: 0,
+    hasPurchasedVip: false,
+  });
+
+  console.log("[auth:register] User created:", normalized);
+  return { message: "注册成功，请使用新密码登录" };
+}
+
+// ─── Password Login ───
+
+/**
+ * 密码登录：bcrypt 比对 → 签发 token pair。
+ */
+export async function loginWithPassword(
+  email: string,
+  password: string
+): Promise<TokenPair | AuthError> {
+  const normalized = email.trim().toLowerCase();
+
+  const user = await userRepository.findByEmail(normalized);
+  if (!user) return { error: "邮箱或密码错误", status: 401 };
+  if (user.status === "BANNED") return { error: "账户已被停用", status: 403 };
+
+  const match = await bcrypt.compare(password, user.passwordHash);
+  if (!match) return { error: "邮箱或密码错误", status: 401 };
+
+  console.log("[auth:login] Password verified for:", normalized);
+  return issueTokens(user.id, user.role);
+}
+
+// ─── Verification Code Login (retained) ───
 
 /**
  * 发送验证码。
@@ -42,7 +160,6 @@ export async function sendVerificationCode(email: string): Promise<AuthError | n
   await setVerificationCode(normalized, code);
   console.log("[auth:send-code] email:", normalized, "| code:", code);
 
-  // 通过类型安全的 getEnv() 读取，替代裸 process.env
   const apiKey = getEnv().RESEND_API_KEY;
   if (!apiKey) {
     console.warn("[auth] RESEND_API_KEY not set — verification code for", normalized, ":", code);
@@ -94,8 +211,7 @@ export async function loginWithCode(email: string, code: string): Promise<TokenP
   const normalized = email.trim().toLowerCase();
 
   const stored = await getVerificationCode(normalized);
-  console.log("[auth:login] email:", normalized, "| submitted:", JSON.stringify(code), "| stored:", JSON.stringify(stored));
-  console.log("[auth:login] typeof stored:", typeof stored, "typeof code:", typeof code, "strict:", stored !== code);
+  console.log("[auth:login] email:", normalized, "| code:", code, "| stored:", stored);
   if (!stored || stored !== code) {
     return { error: "Invalid or expired verification code", status: 401 };
   }
@@ -105,13 +221,8 @@ export async function loginWithCode(email: string, code: string): Promise<TokenP
 
   let user = await userRepository.findByEmail(normalized);
   if (!user) {
-    user = await userRepository.create({
-      email: normalized,
-      role: "USER",
-      status: "ACTIVE",
-      starDiamonds: 0,
-      hasPurchasedVip: false,
-    });
+    // 纯验证码登录不再创建用户 — 用户必须通过注册流程
+    return { error: "该邮箱未注册，请先注册", status: 404 };
   }
 
   if (user.status === "BANNED") {
@@ -184,6 +295,10 @@ async function hashToken(token: string): Promise<string> {
 }
 
 export const authService = {
+  generateCaptcha,
+  verifyCaptchaAndSendCode,
+  registerWithCode,
+  loginWithPassword,
   sendVerificationCode,
   loginWithCode,
   devLogin,

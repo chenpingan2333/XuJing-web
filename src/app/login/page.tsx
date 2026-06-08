@@ -1,45 +1,28 @@
-"use client";
+﻿"use client";
 
 import { useAuth } from "@/lib/use-auth";
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function LoginPage() {
-  const { user, loading, sendCode, loginWithCode } = useAuth();
+  const { user, loading, loginWithPassword } = useAuth();
   const router = useRouter();
 
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
-  const [step, setStep] = useState<"email" | "code">("email");
-  const [sending, setSending] = useState(false);
-  const [logging, setLogging] = useState(false);
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(0);
 
-  const codeInputRef = useRef<HTMLInputElement>(null);
-
-  // Already authenticated — redirect to characters
+  // Already authenticated → redirect
   useEffect(() => {
     if (!loading && user) {
       router.replace("/characters");
     }
   }, [loading, user, router]);
 
-  // Countdown timer for resend
-  useEffect(() => {
-    if (countdown <= 0) return;
-    const id = setInterval(() => setCountdown((c) => c - 1), 1000);
-    return () => clearInterval(id);
-  }, [countdown]);
-
-  // Auto-focus code input when step changes
-  useEffect(() => {
-    if (step === "code") {
-      codeInputRef.current?.focus();
-    }
-  }, [step]);
-
-  // Loading — minimal shell
+  // Loading
   if (loading || user) {
     return (
       <div className="flex h-dvh items-center justify-center bg-stone-50">
@@ -48,30 +31,14 @@ export default function LoginPage() {
     );
   }
 
-  const handleSendCode = async () => {
-    if (!email.trim() || sending || countdown > 0) return;
-    setError(null);
-    setSending(true);
-    try {
-      const err = await sendCode(email.trim());
-      if (err) {
-        setError(err);
-      } else {
-        setStep("code");
-        setCountdown(60);
-      }
-    } catch {
-      setError("发送失败，请稍后重试");
-    }
-    setSending(false);
-  };
+  const canLogin = email.trim() && password.length > 0;
 
   const handleLogin = async () => {
-    if (!email.trim() || !code.trim() || code.trim().length !== 6 || logging) return;
+    if (!canLogin || busy) return;
     setError(null);
-    setLogging(true);
+    setBusy(true);
     try {
-      const err = await loginWithCode(email.trim(), code.trim());
+      const err = await loginWithPassword(email.trim(), password);
       if (err) {
         setError(err);
       } else {
@@ -80,21 +47,7 @@ export default function LoginPage() {
     } catch {
       setError("登录失败，请稍后重试");
     }
-    setLogging(false);
-  };
-
-  const handleCodeChange = (value: string) => {
-    // Only allow digits, max 6
-    const digits = value.replace(/\D/g, "").slice(0, 6);
-    setCode(digits);
-    if (error) setError(null);
-  };
-
-  const handleResend = () => {
-    setStep("email");
-    setCode("");
-    setCountdown(0);
-    setError(null);
+    setBusy(false);
   };
 
   return (
@@ -104,10 +57,9 @@ export default function LoginPage() {
         <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">
           叙境
         </h1>
-        <p className="text-sm text-stone-400">AI 恋爱陪伴平台</p>
+        <p className="text-sm text-stone-400">登录你的叙境账户</p>
       </div>
 
-      {/* Divider */}
       <div className="w-8 h-px bg-stone-200" />
 
       {/* Form */}
@@ -116,62 +68,68 @@ export default function LoginPage() {
         <input
           type="email"
           value={email}
-          onChange={(e) => { setEmail(e.target.value); if (error) setError(null); }}
-          onKeyDown={(e) => { if (e.key === "Enter") handleSendCode(); }}
+          onChange={(e) => { setEmail(e.target.value); setError(null); }}
           placeholder="输入邮箱地址"
           autoComplete="email"
-          disabled={step === "code"}
-          className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-neutral-900 placeholder:text-stone-300 outline-none focus:border-stone-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-neutral-900 placeholder:text-stone-300 outline-none focus:border-stone-400 transition-colors"
+          onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }}
         />
 
-        {/* Code input — shown after send */}
-        {step === "code" && (
+        {/* Password with toggle */}
+        <div className="relative">
           <input
-            ref={codeInputRef}
-            type="text"
-            inputMode="numeric"
-            value={code}
-            onChange={(e) => handleCodeChange(e.target.value)}
+            type={showPassword ? "text" : "password"}
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); setError(null); }}
+            placeholder="输入密码"
+            autoComplete="current-password"
+            className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 pr-12 text-sm text-neutral-900 placeholder:text-stone-300 outline-none focus:border-stone-400 transition-colors"
             onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }}
-            placeholder="输入 6 位验证码"
-            autoComplete="one-time-code"
-            maxLength={6}
-            className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-neutral-900 placeholder:text-stone-300 text-center tracking-[0.5em] outline-none focus:border-stone-400 transition-colors"
           />
-        )}
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-300 hover:text-stone-500 transition-colors text-sm select-none"
+            tabIndex={-1}
+          >
+            {showPassword ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
+                <line x1="1" y1="1" x2="23" y2="23" />
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            )}
+          </button>
+        </div>
 
-        {/* Error message */}
+        {/* Error */}
         {error && (
           <p className="text-xs text-red-500 text-center">{error}</p>
         )}
 
-        {/* Actions */}
-        {step === "email" ? (
-          <button
-            onClick={handleSendCode}
-            disabled={sending || countdown > 0 || !email.trim()}
-            className="w-full rounded-xl bg-neutral-900 py-3 text-sm font-medium text-stone-50 hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        {/* Login button */}
+        <button
+          onClick={handleLogin}
+          disabled={!canLogin || busy}
+          className="w-full rounded-xl bg-neutral-900 py-3 text-sm font-medium text-stone-50 hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          {busy ? "登录中..." : "登录"}
+        </button>
+
+        {/* Register link */}
+        <p className="text-center text-xs text-stone-400 pt-4">
+          还未注册？{" "}
+          <Link
+            href="/register"
+            className="underline underline-offset-2 hover:text-stone-600 transition-colors"
           >
-            {sending ? "发送中..." : countdown > 0 ? `${countdown}s 后可重发` : "发送验证码"}
-          </button>
-        ) : (
-          <div className="space-y-2">
-            <button
-              onClick={handleLogin}
-              disabled={logging || code.length !== 6}
-              className="w-full rounded-xl bg-neutral-900 py-3 text-sm font-medium text-stone-50 hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              {logging ? "验证中..." : "登录"}
-            </button>
-            <button
-              onClick={handleResend}
-              disabled={countdown > 0}
-              className="w-full text-xs text-stone-400 hover:text-stone-600 transition-colors py-1"
-            >
-              {countdown > 0 ? `${countdown}s 后重新发送` : "更换邮箱"}
-            </button>
-          </div>
-        )}
+            请点击此处注册
+          </Link>
+        </p>
       </div>
 
       {/* Footer */}

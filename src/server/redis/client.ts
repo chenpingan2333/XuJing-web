@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Redis Client Abstraction
  *
  * 自动选择驱动：
@@ -56,7 +56,10 @@ function createUpstashClient(): RedisClient {
       return redis.set(key, value);
     },
     async get(key) {
-      return redis.get(key);
+      const val = await redis.get(key);
+      // Upstash auto-deserializes values (e.g. "388509" → 388509).
+      // Force string return to match the RedisClient interface contract.
+      return val == null ? null : String(val);
     },
     async del(...keys) {
       return redis.del(...keys);
@@ -89,7 +92,9 @@ function createIoredisClient(): RedisClient {
       return redis.set(key, value);
     },
     async get(key) {
-      return redis.get(key);
+      const val = await redis.get(key);
+      // ioredis always returns string | null, but guard against edge cases.
+      return val == null ? null : String(val);
     },
     async del(...keys) {
       return redis.del(...keys);

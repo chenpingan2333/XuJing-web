@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback } from "react";
 
-// ─── Types ────────────────────────────────────────────
+// ─── Types ──────────────────────────────────────────────────────────────
 
 export interface UserInfo {
   userId: string;
@@ -19,7 +19,7 @@ interface AuthState {
   loading: boolean;
 }
 
-// ─── localStorage keys ─────────────────────────────────
+// ─── localStorage keys ──────────────────────────────────────────────────
 
 const TOKEN_KEY = "xujing_token";
 
@@ -34,7 +34,7 @@ function setStoredToken(token: string | null) {
   else localStorage.removeItem(TOKEN_KEY);
 }
 
-// ─── API helpers ────────────────────────────────────────
+// ─── API helpers ────────────────────────────────────────────────────────
 
 async function apiCall<T>(path: string, token: string | null, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -57,9 +57,9 @@ async function fetchUser(token: string): Promise<UserInfo> {
   };
 }
 
-// ─── Hook ───────────────────────────────────────────────
+// ─── Hook ───────────────────────────────────────────────────────────────
 
-const AUTH_LOAD_TIMEOUT = 8000; // 8s safety timeout
+const AUTH_LOAD_TIMEOUT = 8000;
 
 export function useAuth() {
   const [state, setState] = useState<AuthState>({
@@ -79,7 +79,6 @@ export function useAuth() {
       setState(s);
     };
 
-    // Safety: always resolve loading within AUTH_LOAD_TIMEOUT
     timeoutId = setTimeout(() => {
       console.warn("[useAuth] Auth init timed out after", AUTH_LOAD_TIMEOUT, "ms");
       done({ token: null, user: null, loading: false });
@@ -106,7 +105,8 @@ export function useAuth() {
     };
   }, []);
 
-  /** Dev login — direct token without verification code */
+  // ─── Dev login (retained) ───────────────────────────────────────────
+
   const login = useCallback(async (email: string) => {
     const data = await apiCall<{ data: { accessToken: string; userId: string } }>(
       "/api/auth/dev/token",
@@ -120,7 +120,8 @@ export function useAuth() {
     return user;
   }, []);
 
-  /** Send verification code to email */
+  // ─── Verification code (retained) ───────────────────────────────────
+
   const sendCode = useCallback(async (email: string): Promise<string | null> => {
     try {
       await apiCall<{ data: { message: string } }>(
@@ -128,13 +129,12 @@ export function useAuth() {
         null,
         { method: "POST", body: JSON.stringify({ email }) }
       );
-      return null; // success
+      return null;
     } catch (err) {
       return err instanceof Error ? err.message : "发送失败";
     }
   }, []);
 
-  /** Verify code and login */
   const loginWithCode = useCallback(async (email: string, code: string): Promise<string | null> => {
     try {
       const data = await apiCall<{ data: { accessToken: string; userId: string } }>(
@@ -146,11 +146,88 @@ export function useAuth() {
       setStoredToken(token);
       const user = await fetchUser(token);
       setState({ token, user, loading: false });
-      return null; // success
+      return null;
     } catch (err) {
       return err instanceof Error ? err.message : "验证失败";
     }
   }, []);
+
+  // ─── Password login ─────────────────────────────────────────────────
+
+  /**
+   * 密码登录。
+   * 成功返回 null，失败返回错误信息字符串。
+   */
+  const loginWithPassword = useCallback(async (email: string, password: string): Promise<string | null> => {
+    try {
+      const data = await apiCall<{ data: { accessToken: string; userId: string } }>(
+        "/api/auth/login",
+        null,
+        { method: "POST", body: JSON.stringify({ email, password }) }
+      );
+      const token = data.data.accessToken;
+      setStoredToken(token);
+      const user = await fetchUser(token);
+      setState({ token, user, loading: false });
+      return null;
+    } catch (err) {
+      return err instanceof Error ? err.message : "登录失败";
+    }
+  }, []);
+
+  // ─── Registration: captcha + send code ──────────────────────────────
+
+  /**
+   * 注册-第一步：图形验证码校验 + 请求邮箱验证码。
+   * 成功返回 null，失败返回错误信息。
+   */
+  const registerRequestCode = useCallback(async (
+    email: string,
+    captchaId: string,
+    captchaText: string
+  ): Promise<string | null> => {
+    try {
+      await apiCall<{ data: { message: string } }>(
+        "/api/auth/register/send-code",
+        null,
+        {
+          method: "POST",
+          body: JSON.stringify({ email, captchaId, captchaText }),
+        }
+      );
+      return null;
+    } catch (err) {
+      return err instanceof Error ? err.message : "验证失败";
+    }
+  }, []);
+
+  // ─── Registration: verify email code + create account ───────────────
+
+  /**
+   * 注册-第二步：校验邮箱验证码 + 创建账户。
+   * 成功返回 null，失败返回错误信息。
+   */
+  const registerVerify = useCallback(async (
+    email: string,
+    code: string,
+    password: string
+  ): Promise<string | null> => {
+    try {
+      await apiCall<{ data: { message: string } }>(
+        "/api/auth/register/verify",
+        null,
+        {
+          method: "POST",
+          body: JSON.stringify({ email, code, password }),
+        }
+      );
+      return null;
+    } catch (err) {
+      return err instanceof Error ? err.message : "注册失败";
+    }
+  }, []);
+
+  // ─── Logout ─────────────────────────────────────────────────────────
 
   const logout = useCallback(async () => {
     if (state.token) {
@@ -162,5 +239,14 @@ export function useAuth() {
     setState({ token: null, user: null, loading: false });
   }, [state.token]);
 
-  return { ...state, login, sendCode, loginWithCode, logout };
+  return {
+    ...state,
+    login,
+    sendCode,
+    loginWithCode,
+    loginWithPassword,
+    registerRequestCode,
+    registerVerify,
+    logout,
+  };
 }

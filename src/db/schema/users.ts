@@ -1,8 +1,9 @@
-/**
- * users 表 — V1.2
+﻿/**
+ * users 表 — V1.3
  *
- * role={USER, ADMIN}，VIP 由 vip_expires_at 表达。
+ * role={USER, ADMIN}，VIP 用 vip_expires_at 表达。
  * star_diamonds: BIGINT。email: LOWER 存储（应用层 email.trim().toLowerCase()）。
+ * password_hash: bcryptjs 哈希，所有新用户必填。
  */
 
 import { pgTable, uuid, varchar, timestamp, bigint, boolean, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -16,6 +17,7 @@ export const users = pgTable(
       .primaryKey()
       .$defaultFn(() => uuidv7()),
     email: varchar("email", { length: 255 }).notNull(),
+    passwordHash: varchar("password_hash", { length: 255 }).notNull(),
     nickname: varchar("nickname", { length: 100 }).default(""),
     avatarUrl: varchar("avatar_url", { length: 500 }),
     role: userRoleEnum("role").notNull().default("USER"),

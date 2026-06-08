@@ -1,42 +1,44 @@
 {
-    "name":  "xujing",
-    "version":  "0.1.0",
-    "private":  true,
-    "scripts":  {
-                    "dev":  "next dev -p 3003",
-                    "build":  "next build",
-                    "start":  "next start -p 3003",
-                    "lint":  "next lint",
-                    "db:generate":  "drizzle-kit generate",
-                    "db:migrate":  "drizzle-kit migrate",
-                    "db:seed":  "tsx src/scripts/seed.ts",
-                    "db:studio":  "drizzle-kit studio",
-                    "health":  "tsx src/server/services/infra-health.ts",
-                    "prebuild":  "pnpm run db:migrate",
-                    "vercel-build":  "pnpm run db:migrate \u0026\u0026 next build"
-                },
-    "dependencies":  {
-                         "@neondatabase/serverless":  "^1.1.0",
-                         "@upstash/redis":  "^1.38.0",
-                         "drizzle-orm":  "^0.39.0",
-                         "ioredis":  "^5.11.1",
-                         "next":  "^15.2.0",
-                         "postgres":  "^3.4.0",
-                         "react":  "^19.0.0",
-                         "react-dom":  "^19.0.0",
-                         "resend":  "^6.12.4",
-                         "zod":  "^3.24.0",
-                         "jose":  "^5.9.0"
-                     },
-    "devDependencies":  {
-                            "@playwright/test":  "^1.60.0",
-                            "@tailwindcss/postcss":  "^4.0.0",
-                            "@types/node":  "^22.0.0",
-                            "@types/react":  "^19.0.0",
-                            "@types/react-dom":  "^19.0.0",
-                            "drizzle-kit":  "^0.30.0",
-                            "tailwindcss":  "^4.0.0",
-                            "tsx":  "^4.19.0",
-                            "typescript":  "^5.7.0"
-                        }
+    "name": "xujing",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "dev": "next dev -p 3003",
+        "build": "next build",
+        "start": "next start -p 3003",
+        "lint": "next lint",
+        "db:generate": "drizzle-kit generate",
+        "db:migrate": "drizzle-kit migrate",
+        "db:seed": "tsx src/scripts/seed.ts",
+        "db:studio": "drizzle-kit studio",
+        "health": "tsx src/server/services/infra-health.ts",
+        "prebuild": "pnpm run db:migrate",
+        "vercel-build": "pnpm run db:migrate && next build"
+    },
+    "dependencies": {
+        "@neondatabase/serverless": "^1.1.0",
+        "@upstash/redis": "^1.38.0",
+        "bcryptjs": "^3.0.3",
+        "drizzle-orm": "^0.39.0",
+        "ioredis": "^5.11.1",
+        "jose": "^5.9.0",
+        "next": "^15.2.0",
+        "postgres": "^3.4.0",
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0",
+        "resend": "^6.12.4",
+        "svg-captcha": "^1.4.0",
+        "zod": "^3.24.0"
+    },
+    "devDependencies": {
+        "@playwright/test": "^1.60.0",
+        "@tailwindcss/postcss": "^4.0.0",
+        "@types/node": "^22.0.0",
+        "@types/react": "^19.0.0",
+        "@types/react-dom": "^19.0.0",
+        "drizzle-kit": "^0.30.0",
+        "tailwindcss": "^4.0.0",
+        "tsx": "^4.19.0",
+        "typescript": "^5.7.0"
+    }
 }

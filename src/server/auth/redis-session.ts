@@ -1,7 +1,7 @@
-/**
+﻿/**
  * Redis Session — Phase 5 (Vercel Serverless)
  *
- * 基于统一 Redis 抽象层：refresh token、JTI 黑名单、验证码缓存。
+ * 基于统一 Redis 抽象层：refresh token、JTI 黑名单、验证码缓存、图形验证码。
  */
 
 import { getRedis } from "@/server/redis/client";
@@ -60,6 +60,23 @@ export async function getVerificationCode(email: string): Promise<string | null>
 
 export async function deleteVerificationCode(email: string): Promise<void> {
   await getRedis().del(CODE_PREFIX + email);
+}
+
+// ─── Captcha (Anti-bot) ───
+
+const CAPTCHA_PREFIX = "xujing:captcha:";
+const CAPTCHA_TTL = 120; // 2 minutes
+
+export async function setCaptcha(id: string, answer: string): Promise<void> {
+  await getRedis().set(CAPTCHA_PREFIX + id, answer, CAPTCHA_TTL);
+}
+
+export async function getCaptcha(id: string): Promise<string | null> {
+  return getRedis().get(CAPTCHA_PREFIX + id);
+}
+
+export async function deleteCaptcha(id: string): Promise<void> {
+  await getRedis().del(CAPTCHA_PREFIX + id);
 }
 
 // ─── Health ───
