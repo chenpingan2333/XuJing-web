@@ -27,9 +27,11 @@ let _client: RedisClient | null = null;
 export function getRedis(): RedisClient {
   if (_client) return _client;
 
-  console.log("[redis] Using Upstash driver, url:", process.env.UPSTASH_REDIS_URL?.substring(0, 30) + "..."); if (process.env.UPSTASH_REDIS_URL && process.env.UPSTASH_REDIS_TOKEN) {
+  if (process.env.UPSTASH_REDIS_URL && process.env.UPSTASH_REDIS_TOKEN) {
+    console.log("[redis] Using Upstash driver");
     _client = createUpstashClient();
-  } console.log("[redis] Using ioredis driver"); else if (process.env.REDIS_URL) {
+  } else if (process.env.REDIS_URL) {
+    console.log("[redis] Using ioredis driver");
     _client = createIoredisClient();
   } else {
     throw new Error("No Redis configuration found. Set UPSTASH_REDIS_URL+UPSTASH_REDIS_TOKEN or REDIS_URL.");
