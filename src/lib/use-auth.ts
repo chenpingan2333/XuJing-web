@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useCallback } from "react";
 
@@ -40,9 +40,18 @@ async function apiCall<T>(path: string, token: string | null, options?: RequestI
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = "Bearer " + token;
   const res = await fetch(path, { ...options, headers });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Request failed");
-  return data;
+  const ct = res.headers.get("content-type") || "";
+  if (!res.ok) {
+    let msg = "Request failed";
+    if (ct.includes("application/json")) {
+      try { const body = await res.json(); msg = body.error || msg; } catch {}
+    } else if (res.status >= 500) {
+      msg = "服务器内部错误，请稍后重试";
+    }
+    throw new Error(msg);
+  }
+  if (!ct.includes("application/json")) throw new Error("服务器返回了意外的响应格式");
+  return res.json();
 }
 
 async function fetchUser(token: string): Promise<UserInfo> {

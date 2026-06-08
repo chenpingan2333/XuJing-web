@@ -4,11 +4,13 @@ import { eq } from "drizzle-orm";
 
 export class UserRepository {
   async findById(id: string) {
-    return db.query.users.findFirst({ where: eq(users.id, id) });
+    const rows = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    return rows[0] ?? null;
   }
 
   async findByEmail(email: string) {
-    return db.query.users.findFirst({ where: eq(users.email, email) });
+    const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    return rows[0] ?? null;
   }
 
   async create(data: typeof users.$inferInsert) {
