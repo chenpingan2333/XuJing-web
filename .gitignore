@@ -1,4 +1,4 @@
-﻿# dependencies
+# dependencies
 node_modules/
 .pnpm-store/
 
@@ -15,7 +15,6 @@ dist/
 .env.production
 
 # drizzle
-drizzle/meta/
 
 # IDE
 .idea/
