@@ -40,6 +40,7 @@ export async function sendVerificationCode(email: string): Promise<AuthError | n
 
   const code = String(Math.floor(100000 + Math.random() * 900000));
   await setVerificationCode(normalized, code);
+  console.log("[auth:send-code] email:", normalized, "| code:", code);
 
   // 通过类型安全的 getEnv() 读取，替代裸 process.env
   const apiKey = getEnv().RESEND_API_KEY;
@@ -93,6 +94,7 @@ export async function loginWithCode(email: string, code: string): Promise<TokenP
   const normalized = email.trim().toLowerCase();
 
   const stored = await getVerificationCode(normalized);
+  console.log("[auth:login] email:", normalized, "| submitted code:", code, "| stored code:", stored);
   if (!stored || stored !== code) {
     return { error: "Invalid or expired verification code", status: 401 };
   }
