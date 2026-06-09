@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -330,10 +330,10 @@ export default function ImportCharacterModal({
               </button>
               <button
                 onClick={handleImport}
-                disabled={step === "importing"}
+                disabled={(step as string) === "importing"}
                 className="flex-1 rounded-xl bg-neutral-900 py-2.5 text-xs font-medium text-stone-50 hover:bg-neutral-800 transition-colors active:scale-[0.98] disabled:opacity-50"
               >
-                {step === "importing" ? "导入中..." : "确认导入"}
+                {(step as string) === "importing" ? "导入中..." : "确认导入"}
               </button>
             </div>
           </div>
