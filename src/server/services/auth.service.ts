@@ -302,7 +302,7 @@ for (const t of templates) {
       groupGreeting: t.extended_fields?.groupGreeting || null,
       mainPrompt: t.system_instructions?.mainPrompt || null,
       postHistoryInstructions: t.system_instructions?.postHistoryInstructions || null,
-      isOfficial: false,
+      isOfficial: true,
       version: 1,
     });
   }

@@ -1,4 +1,4 @@
-import { db } from "@/db";
+﻿import { db } from "@/db";
 import { characters } from "@/db/schema/characters";
 import { eq, and, isNull, sql } from "drizzle-orm";
 
@@ -8,8 +8,14 @@ export class CharacterRepository {
     return r ?? null;
   }
 
-  async findOfficial() {
-    return db.select().from(characters).where(and(eq(characters.isOfficial, true), isNull(characters.userId)));
+  async findOfficial(userId?: string) {
+    const conditions = [eq(characters.isOfficial, true)];
+    if (userId) {
+      conditions.push(eq(characters.userId, userId));
+    } else {
+      conditions.push(isNull(characters.userId));
+    }
+    return db.select().from(characters).where(and(...conditions));
   }
 
   async findUserCharacters(userId: string) {

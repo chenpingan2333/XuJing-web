@@ -1,10 +1,8 @@
-/**
+﻿/**
  * CharacterService — Phase 7.2
  *
- * 职责: 角色 CRUD、导入/导出、配额控制、权限校验。
- * 复用 CharacterRepository，不修改数据库 Schema。
- *
- * Phase 7.2: TD-1 Service Layer Zod + TD-2 as any elimination.
+ * Responsibilities: character CRUD, import/export, quota control, permission checks.
+ * Reuses CharacterRepository; does not modify database Schema.
  */
 
 import { characterRepository } from "../repositories/character.repository";
@@ -37,23 +35,20 @@ export class CharacterError extends Error {
 // Helpers
 // ============================================================================
 
-/** jsonb 列不接受空字符串，统一转为 null */
+/** jsonb columns do not accept empty strings; normalize to null */
 function nullIfEmpty(value: string | null | undefined): string | null {
   if (value === "" || value === undefined || value === null) return null;
   return value;
 }
 
-/** undefined → null for optional fields */
+/** undefined -> null for optional fields */
 function undefToNull(value: string | null | undefined): string | null {
   if (value === undefined) return null;
   if (value === "") return null;
   return value;
 }
 
-/**
- * TD-2: 类型安全的 Insert 数据构造器。
- * 消除 as any，与 Drizzle $inferInsert 类型对齐。
- */
+/** Type-safe Insert data constructor aligned with Drizzle $inferInsert */
 function toInsertData(params: {
   userId: string;
   name: string;
@@ -98,7 +93,7 @@ function toInsertData(params: {
 
 export class CharacterService {
   // ==========================================================================
-  // Quota
+  // Quota — only count private (non-official) characters
   // ==========================================================================
 
   private async checkQuota(userId: string, subscription: string): Promise<void> {
@@ -107,29 +102,28 @@ export class CharacterService {
     if (count >= FREE_USER_CHARACTER_LIMIT) {
       throw new CharacterError(
         "CHARACTER_QUOTA_EXCEEDED",
-        "角色数量已达上限 (2/2)",
+        "Character limit reached (2/2)",
         403,
       );
     }
   }
 
   // ==========================================================================
-  // Ownership
+  // Ownership — character must belong to the user and be non-official
   // ==========================================================================
 
-  /** 要求角色属于指定用户且非官方 — 用于写操作（编辑/删除/导出） */
   private async requireOwnership(characterId: string, userId: string) {
     const character = await characterRepository.findById(characterId);
     if (!character || character.deletedAt) {
-      throw new CharacterError("CHARACTER_NOT_FOUND", "角色不存在", 404);
+      throw new CharacterError("CHARACTER_NOT_FOUND", "Character not found", 404);
     }
     if (character.userId !== userId) {
-      throw new CharacterError("CHARACTER_NOT_OWNED", "无权操作此角色", 403);
+      throw new CharacterError("CHARACTER_NOT_OWNED", "Permission denied", 403);
     }
     if (character.isOfficial) {
       throw new CharacterError(
         "CHARACTER_OFFICIAL_IMMUTABLE",
-        "官方角色不可编辑或删除",
+        "Official characters cannot be edited or deleted",
         403,
       );
     }
@@ -155,7 +149,7 @@ export class CharacterService {
     if (duplicate) {
       throw new CharacterError(
         "CHARACTER_DUPLICATE_NAME",
-        `已存在同名角色「${trimmed}」`,
+        `A character named "${trimmed}" already exists`,
         409,
       );
     }
@@ -183,7 +177,6 @@ export class CharacterService {
       extra_fields?: Record<string, unknown>;
     },
   ) {
-    // TD-1: Service-layer Zod re-validation
     const validated = CreateCharacterSchema.parse(data);
 
     await this.checkQuota(auth.userId, auth.subscription);
@@ -230,9 +223,7 @@ export class CharacterService {
       extra_fields?: Record<string, unknown> | null;
     },
   ) {
-    // TD-1: Service-layer Zod re-validation
     const validated = UpdateCharacterSchema.parse(data);
-
     const character = await this.requireOwnership(characterId, auth.userId);
 
     if (validated.name && validated.name.trim()) {
@@ -269,25 +260,23 @@ export class CharacterService {
     return { deleted: true };
   }
 
-  /**
-   * getCharacter — 权限规则：
-   * - 官方角色：任何人可查看
-   * - 用户角色：仅所有者可查看
-   * - 非官方且不属于当前用户 → 403
+  /** getCharacter — permission rules:
+   *  - Official characters: anyone can view
+   *  - User characters: owner only
    */
   async getCharacter(auth: AuthUser, characterId: string) {
     const character = await characterRepository.findById(characterId);
     if (!character || character.deletedAt) {
-      throw new CharacterError("CHARACTER_NOT_FOUND", "角色不存在", 404);
+      throw new CharacterError("CHARACTER_NOT_FOUND", "Character not found", 404);
     }
     if (!character.isOfficial && character.userId !== auth.userId) {
-      throw new CharacterError("CHARACTER_NOT_OWNED", "无权查看此角色", 403);
+      throw new CharacterError("CHARACTER_NOT_OWNED", "Permission denied", 403);
     }
     return character;
   }
 
   async listCharacters(_auth: AuthUser) {
-    const official = await characterRepository.findOfficial();
+    const official = await characterRepository.findOfficial(_auth.userId);
     const userChars = await characterRepository.findUserCharacters(_auth.userId);
     return { official, user: userChars };
   }
@@ -320,7 +309,7 @@ export class CharacterService {
   }
 
   // ==========================================================================
-  // Import — 统一 Zod 校验链
+  // Import
   // ==========================================================================
 
   async importCharacter(
@@ -329,18 +318,16 @@ export class CharacterService {
   ) {
     await this.checkQuota(auth.userId, auth.subscription);
 
-    // 1. 统一 Zod 校验 — 自动检测格式 (Xujing / Tavern v2)
     const parsed = ImportCharacterSchema.safeParse(rawBody);
     if (!parsed.success) {
       const first = parsed.error.errors[0];
       throw new CharacterError(
         "CHARACTER_IMPORT_INVALID",
-        first ? `导入文件格式无效: ${first.message}` : "导入文件格式无效",
+        first ? `Invalid import format: ${first.message}` : "Invalid import format",
         400,
       );
     }
 
-    // 2. 字段映射
     const imported = parsed.data;
     let mapped: {
       name: string;
@@ -361,11 +348,7 @@ export class CharacterService {
     if ("spec" in imported) {
       // Tavern v2
       const inner = imported.data;
-      mapped = {
-        name: inner.name,
-        setting: inner.description,
-        greeting: inner.first_mes,
-      };
+      mapped = { name: inner.name, setting: inner.description, greeting: inner.first_mes };
       if (inner.personality) mapped.personality = inner.personality;
       if (inner.scenario) mapped.scenario = inner.scenario;
       if (inner.mes_example) mapped.dialogue_examples = inner.mes_example;
@@ -379,11 +362,7 @@ export class CharacterService {
       if (Object.keys(extra).length > 0) mapped.extra_fields = extra;
     } else {
       // Xujing native
-      mapped = {
-        name: imported.name,
-        setting: imported.setting,
-        greeting: imported.greeting,
-      };
+      mapped = { name: imported.name, setting: imported.setting, greeting: imported.greeting };
       if ("avatar_url" in imported && imported.avatar_url) mapped.avatar_url = imported.avatar_url;
       if ("background_url" in imported && imported.background_url) mapped.background_url = imported.background_url;
       if ("personality" in imported && imported.personality) mapped.personality = imported.personality;
@@ -396,10 +375,7 @@ export class CharacterService {
       if ("extra_fields" in imported && imported.extra_fields) mapped.extra_fields = imported.extra_fields as Record<string, unknown>;
     }
 
-    // 3. 二次 Zod 校验 mapped 数据（确保字段限制）
     const validated = CreateCharacterSchema.parse(mapped);
-
-    // 4. 创建
     return this.createCharacter(auth, validated);
   }
 }
