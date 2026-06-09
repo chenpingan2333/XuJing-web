@@ -16,7 +16,7 @@ import type { NewCharacter } from "@/db/schema/characters";
 // Constants
 // ============================================================================
 
-const FREE_USER_CHARACTER_LIMIT = 12;
+const FREE_USER_CHARACTER_LIMIT = 2;
 
 // ============================================================================
 // Business Errors
@@ -107,7 +107,7 @@ export class CharacterService {
     if (count >= FREE_USER_CHARACTER_LIMIT) {
       throw new CharacterError(
         "CHARACTER_QUOTA_EXCEEDED",
-        "角色数量已达上限 (12/12)",
+        "角色数量已达上限 (2/2)",
         403,
       );
     }

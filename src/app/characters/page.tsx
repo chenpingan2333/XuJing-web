@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useAuth } from "@/lib/use-auth";
 import { useState, useEffect, useCallback } from "react";
@@ -15,7 +15,7 @@ interface CharacterRow {
   isOfficial: boolean;
 }
 
-const FREE_LIMIT = 12;
+const FREE_LIMIT = 2;
 
 export default function CharactersPage() {
   const { user, loading, token } = useAuth();
