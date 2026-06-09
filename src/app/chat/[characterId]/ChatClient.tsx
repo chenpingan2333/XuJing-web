@@ -103,7 +103,13 @@ export function ChatClient({ characterId }: { characterId: string }) {
 
   const stats = (() => {
     if (!character || messages.length === 0) return null;
-    const createdAt = character.createdAt ? new Date(character.createdAt) : new Date();
+    // Safe read — intersect with optional createdAt fields, compatible with snake_case
+    const charData = character as CharacterData & { createdAt?: string | Date; created_at?: string | Date };
+    const rawDate = charData.createdAt || charData.created_at;
+    // Fallback to first message time or current time
+    const firstMsgDate = messages[0]?.createdAt;
+    const fallbackDate = firstMsgDate ? new Date(firstMsgDate) : new Date();
+    const createdAt = rawDate ? new Date(rawDate as string | Date) : fallbackDate;
     const now = new Date();
     const diffDays = Math.max(1, Math.ceil((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24)));
     const totalWords = messages.reduce((sum, m) => sum + (m.content?.length ?? 0), 0);
