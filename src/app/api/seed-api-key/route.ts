@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "../../_base/auth";
+import { requireAuth } from "../_base/auth";
 import { apiConfigService } from "@/server/services/api-config.service";
 
 export async function GET(req: NextRequest) {

@@ -1,5 +1,5 @@
-import { jsonOk, jsonErr } from "../../../_base/response";
-import { requireAuth } from "../../../_base/auth";
+import { jsonOk, jsonErr } from "../../_base/response";
+import { requireAuth } from "../../_base/auth";
 import { apiConfigRepository } from "@/server/repositories/api-config.repository";
 
 export async function POST(req: Request) {
