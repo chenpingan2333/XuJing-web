@@ -4,7 +4,7 @@
  * body: { email, seedKey }
  * seedKey 防止误调用
  */
-import { jsonOk, jsonErr } from "../../_base/response";
+import { jsonOk, jsonErr } from "../_base/response";
 import { db } from "@/db";
 import { users } from "@/db/schema/users";
 import { eq } from "drizzle-orm";
