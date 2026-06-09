@@ -2,10 +2,12 @@
 
 import { useAuth } from "@/lib/use-auth";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { formatDisplayId } from "@/lib/utils";
 
 export default function SettingsPage() {
   const { user, loading, logout } = useAuth();
+  const router = useRouter();
   const [nickname, setNickname] = useState("叙境旅人");
   const [saved, setSaved] = useState(false);
 
@@ -142,6 +144,13 @@ export default function SettingsPage() {
                   ? "可使用系统模型 + 可选自带 Key"
                   : "请配置 API Key 才能使用 AI"}
               </span>
+            </div>
+            <div
+              onClick={() => router.push("/api-connections")}
+              className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-100 transition-colors"
+            >
+              <span className="text-sm text-gray-600">API 配置</span>
+              <span className="text-sm text-gray-400">&rarr;</span>
             </div>
           </div>
         </section>

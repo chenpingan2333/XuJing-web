@@ -1,132 +1,230 @@
-"use client";
+﻿"use client";
 
 import { useAuth } from "@/lib/use-auth";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
-interface ProviderRow {
+interface ConfigRow {
   id: string;
   name: string;
   platform: string;
   modelId: string;
   apiUrl: string;
   isDefault: boolean;
-  isActive: boolean;
 }
 
-const PLATFORM_LABELS: Record<string, string> = {
-  OPENAI: "OpenAI", ANTHROPIC: "Claude", GEMINI: "Gemini",
-  DEEPSEEK: "DeepSeek", GROK: "Grok",
-  CUSTOM_OPENAI: "OpenAI Compatible", CUSTOM_ANTHROPIC: "Anthropic Compatible",
-  CUSTOM_GEMINI: "Gemini Compatible",
-};
+const DEEPSEEK_DEFAULTS = {
+  platform: "DEEPSEEK",
+  apiUrl: "https://api.deepseek.com",
+  modelId: "deepseek-chat",
+  name: "DeepSeek",
+} as const;
 
 export default function ApiConnectionsPage() {
-  const { user, loading, token } = useAuth();
+  // ═══════════════════ HOOKS ZONE ═══════════════════
+  const { user, loading: authLoading, token } = useAuth();
   const router = useRouter();
-  const [providers, setProviders] = useState<ProviderRow[]>([]);
+  const [configs, setConfigs] = useState<ConfigRow[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [apiKey, setApiKey] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  const fetchProviders = useCallback(async () => {
+  const fetchConfigs = useCallback(async () => {
     if (!token) return;
     try {
       const res = await fetch("/api/api-configs", {
         headers: { Authorization: "Bearer " + token },
       });
       const data = await res.json();
-      if (data.success) setProviders(data.data || []);
+      if (data.success) setConfigs(Array.isArray(data.data) ? data.data : []);
     } catch { /* ignore */ }
     setFetching(false);
   }, [token]);
 
-  useEffect(() => { fetchProviders(); }, [fetchProviders]);
-
-  if (loading || fetching) {
-    return <div className="flex h-dvh items-center justify-center text-gray-400">加载中...</div>;
-  }
+  useEffect(() => { fetchConfigs(); }, [fetchConfigs]);
 
   useEffect(() => {
-    if (!loading && !user) router.replace("/login");
-  }, [loading, user, router]);
+    if (!authLoading && !user) router.replace("/login");
+  }, [authLoading, user, router]);
 
-  if (loading || !user) {
-    return <div className="flex h-dvh items-center justify-center text-gray-400">加载中...</div>;
+  const existingConfig = configs.length > 0 ? configs[0] : null;
+  const isConfigured = existingConfig !== null;
+  const maskedSuffix = existingConfig?.name
+    ? existingConfig.name.slice(-4)
+    : null;
+
+  const showToast = (type: "success" | "error", message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 2500);
+  };
+
+  const handleSave = async () => {
+    if (!apiKey.trim() || apiKey.length < 8) {
+      showToast("error", "API Key 至少 8 个字符");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/api-configs", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token,
+        },
+        body: JSON.stringify({
+          name: DEEPSEEK_DEFAULTS.name,
+          platform: DEEPSEEK_DEFAULTS.platform,
+          apiUrl: DEEPSEEK_DEFAULTS.apiUrl,
+          apiKey: apiKey.trim(),
+          modelId: DEEPSEEK_DEFAULTS.modelId,
+          isDefault: true,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("success", "保存成功");
+        setApiKey("");
+        fetchConfigs();
+      } else {
+        showToast("error", data.error || "保存失败");
+      }
+    } catch {
+      showToast("error", "网络错误，请重试");
+    }
+    setSaving(false);
+  };
+
+
+  // ═══════════════════ RENDER ZONE ═══════════════════
+
+  if (authLoading || fetching) {
+    return (
+      <div className="flex h-dvh items-center justify-center bg-stone-50">
+        <span className="text-sm text-stone-300">加载中…</span>
+      </div>
+    );
   }
 
-  const isVip = user.subscription === "vip";
-  const isEmpty = providers.length === 0;
-  const hasCustomDefault = providers.some((p) => p.isDefault);
+  if (!user) {
+    return (
+      <div className="flex h-dvh items-center justify-center bg-stone-50">
+        <span className="text-sm text-stone-300">跳转中…</span>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-dvh flex-col">
+    <div className="flex h-dvh flex-col bg-stone-50">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 pt-12 pb-4">
-        <div className="flex items-center gap-3">
-          <button onClick={() => { window.location.href = "/me"; }} className="text-gray-400 text-lg">&larr;</button>
-          <h1 className="text-lg font-semibold text-gray-900">API 连接</h1>
-        </div>
-        <button onClick={() => { window.location.href = "/api-connections/new"; }}
-          className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white">
-          添加
+      <header className="shrink-0 flex items-center gap-4 px-5 pt-12 pb-4">
+        <button
+          onClick={() => router.push("/settings")}
+          className="flex h-8 w-8 items-center justify-center rounded-full text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600"
+        >
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11 4L6 9l5 5" />
+          </svg>
         </button>
-      </div>
+        <h1 className="text-lg font-semibold tracking-tight text-neutral-900">API 配置</h1>
+      </header>
 
-      <div className="flex-1 overflow-y-auto px-5 pb-8 space-y-3">
-        {/* VIP System Model Card (virtual, not from DB) */}
-        {isVip && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-amber-500 text-lg">★</span>
-                <div>
-                  <div className="text-sm font-medium text-amber-900">叙境平台专属模型</div>
-                  <div className="text-xs text-amber-600">平台默认提供</div>
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto px-5 pb-12">
+        {/* Status section */}
+        <section className="mb-8">
+          <h2 className="mb-3 text-[11px] font-medium uppercase tracking-wider text-stone-400">
+            连接状态
+          </h2>
+          <div className={`rounded-xl px-5 py-4 ${isConfigured ? "bg-stone-100" : "bg-stone-100"}`}>
+            <div className="flex items-center gap-3">
+              <div className={`h-2 w-2 rounded-full ${isConfigured ? "bg-emerald-500" : "bg-stone-300"}`} />
+              <div>
+                <div className="text-sm font-medium text-neutral-800">
+                  {isConfigured ? "已配置" : "未配置"}
+                </div>
+                <div className="mt-0.5 text-xs text-stone-400">
+                  {isConfigured
+                    ? `DeepSeek  ·  ${existingConfig.modelId}  ·  尾号 ${maskedSuffix}`
+                    : "请配置 DeepSeek API Key 以开始使用 AI 对话"}
                 </div>
               </div>
-              {!hasCustomDefault && (
-                <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-medium text-amber-800">当前</span>
-              )}
-              {hasCustomDefault && (
-                <span className="rounded-full bg-gray-50 px-2 py-0.5 text-xs font-medium text-gray-500">可用</span>
-              )}
             </div>
           </div>
-        )}
+        </section>
 
-        {/* FREE empty state */}
-        {!isVip && isEmpty && (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="text-3xl mb-3">&#9888;&#65039;</div>
-            <div className="text-sm font-medium text-gray-700">未配置 API 接口</div>
-            <div className="mt-1 text-xs text-gray-500">请配置至少一个 API Provider 才能开始使用 AI 聊天功能</div>
-            <button onClick={() => { window.location.href = "/api-connections/new"; }}
-              className="mt-4 rounded-lg bg-gray-900 px-4 py-2 text-sm text-white">
-              添加 Provider
+        {/* Form section */}
+        <section>
+          <h2 className="mb-3 text-[11px] font-medium uppercase tracking-wider text-stone-400">
+            DeepSeek 配置
+          </h2>
+
+          <div className="space-y-4">
+            {/* Provider (locked to DeepSeek) */}
+            <div>
+              <label className="block mb-1.5 text-xs font-medium text-stone-500">
+                模型供应商
+              </label>
+              <div className="flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2.5">
+                <span className="text-sm text-neutral-800 font-medium">DeepSeek</span>
+                <span className="rounded bg-stone-100 px-1.5 py-0.5 text-[10px] text-stone-400">
+                  默认
+                </span>
+              </div>
+              <p className="mt-1 text-[11px] text-stone-300">
+                api.deepseek.com  ·  deepseek-chat
+              </p>
+            </div>
+
+            {/* API Key */}
+            <div>
+              <label className="block mb-1.5 text-xs font-medium text-stone-500">
+                API Key
+              </label>
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="sk-..."
+                className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-neutral-800 placeholder-stone-300 outline-none transition-colors focus:border-stone-400"
+              />
+              <p className="mt-1 text-[11px] text-stone-300">
+                密钥加密存储，仅你可见
+              </p>
+            </div>
+
+            {/* Save button */}
+            <button
+              onClick={handleSave}
+              disabled={saving || !apiKey.trim()}
+              className="w-full rounded-lg bg-neutral-900 py-2.5 text-sm font-medium text-stone-50 transition-all duration-200 hover:bg-neutral-800 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {saving ? "保存中…" : isConfigured ? "更新密钥" : "保存并连接"}
             </button>
-          </div>
-        )}
 
-        {/* Provider list */}
-        {providers.map((p) => (
-          <div key={p.id}
-            onClick={() => { window.location.href = "/api-connections/" + p.id; }}
-            className="cursor-pointer rounded-xl border border-gray-100 bg-gray-50 p-4 hover:border-gray-200 transition-colors">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className={p.isDefault ? "text-green-500" : "text-gray-300"}>{p.isDefault ? "●" : "○"}</span>
-                <div>
-                  <div className="text-sm font-medium text-gray-900">{p.name}</div>
-                  <div className="text-xs text-gray-500">{PLATFORM_LABELS[p.platform] || p.platform} · {p.modelId}</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {p.isDefault && <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">默认</span>}
-                <span className="text-gray-300 text-sm">&rarr;</span>
-              </div>
-            </div>
+            {isConfigured && (
+              <p className="text-center text-[11px] text-stone-300">
+                已保存配置将被覆盖更新
+              </p>
+            )}
           </div>
-        ))}
+        </section>
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50">
+          <div
+            className={`rounded-full px-5 py-2.5 text-xs font-medium shadow-lg transition-all duration-300 ${
+              toast.type === "success"
+                ? "bg-neutral-900 text-stone-50"
+                : "bg-red-50 text-red-600 border border-red-100"
+            }`}
+          >
+            {toast.message}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
