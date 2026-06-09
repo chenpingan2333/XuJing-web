@@ -95,6 +95,7 @@ export function ChatClient({ characterId }: { characterId: string }) {
   const [hasApiConfigured, setHasApiConfigured] = useState(true);
   const [needsApiConfig, setNeedsApiConfig] = useState(false);
   const [greetingDismissed, setGreetingDismissed] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const isVip = user?.subscription === "vip";
 
@@ -154,7 +155,10 @@ export function ChatClient({ characterId }: { characterId: string }) {
         setMessages(chatData.data.messages ?? []);
         setMemory(chatData.data.memory ?? { used: 0, limit: 100 });
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error("[ChatClient] Failed to load chat data:", err instanceof Error ? err.message : String(err));
+      setLoadError("聊天记录加载失败，请检查网络后重试");
+    }
     setFetching(false);
   }, [token, characterId]);
 
