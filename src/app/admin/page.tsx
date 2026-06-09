@@ -46,7 +46,7 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="px-8 pt-12 pb-8">
+    <div className="px-8 pt-12 pb-8 overflow-y-auto">
       <h2 className="text-lg font-semibold tracking-tight text-neutral-900 mb-6">概览</h2>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {cards.map((c) => (
