@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/use-auth";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ImportCharacterModal from "@/components/ImportCharacterModal";
 
 interface CharacterRow {
   id: string;
@@ -22,6 +23,7 @@ export default function CharactersPage() {
   const [fetching, setFetching] = useState(true);
   const [official, setOfficial] = useState<CharacterRow[]>([]);
   const [userChars, setUserChars] = useState<CharacterRow[]>([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const isVip = user?.subscription === "vip";
   const charCount = userChars.length;
@@ -48,6 +50,16 @@ export default function CharactersPage() {
 
   useEffect(() => { if (user) fetchCharacters(); }, [fetchCharacters, user]);
 
+  const handleOpenCreate = () => {
+    if (atLimit) return;
+    setShowCreateModal(true);
+  };
+
+  const handleImported = () => {
+    setFetching(true);
+    fetchCharacters();
+  };
+
   if (loading || !user || fetching) {
     return (
       <div className="flex h-dvh items-center justify-center bg-stone-50">
@@ -61,25 +73,19 @@ export default function CharactersPage() {
       {/* Header */}
       <header className="shrink-0 px-6 pt-12 pb-3 flex items-end justify-between">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight text-neutral-900">
-            叙境
-          </h1>
+          <h1 className="text-lg font-semibold tracking-tight text-neutral-900">叙境</h1>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-[11px] text-stone-400">
-              {isVip
-                ? "已创建 " + charCount + " 个角色"
-                : charCount + " / " + FREE_LIMIT}
+              {isVip ? "已创建 " + charCount + " 个角色" : charCount + " / " + FREE_LIMIT}
             </span>
             {atLimit && (
-              <span className="text-[10px] text-stone-300 bg-stone-100 px-1.5 py-0.5 rounded-full">
-                已满
-              </span>
+              <span className="text-[10px] text-stone-300 bg-stone-100 px-1.5 py-0.5 rounded-full">已满</span>
             )}
           </div>
         </div>
-        <Link
-          href={atLimit ? "#" : "/characters/new"}
-          onClick={(e) => { if (atLimit) e.preventDefault(); }}
+        <button
+          onClick={handleOpenCreate}
+          disabled={atLimit}
           className={
             "inline-flex items-center gap-1 rounded-xl px-4 py-2 text-xs font-medium transition-colors duration-200 " +
             (atLimit
@@ -91,7 +97,7 @@ export default function CharactersPage() {
             <path d="M7 3v8M3 7h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
           新建
-        </Link>
+        </button>
       </header>
 
       {/* Body */}
@@ -122,9 +128,7 @@ export default function CharactersPage() {
                 </svg>
               </div>
               <p className="text-sm text-stone-400">还没有角色</p>
-              <p className="text-xs text-stone-300 mt-1">
-                点击右上角「新建」开始创造
-              </p>
+              <p className="text-xs text-stone-300 mt-1">点击右上角「新建」开始创造</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
@@ -137,6 +141,14 @@ export default function CharactersPage() {
       </div>
 
       <BottomNav current="characters" />
+
+      {/* Create / Import Modal */}
+      <ImportCharacterModal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onImported={handleImported}
+        token={token}
+      />
     </div>
   );
 }
@@ -148,36 +160,21 @@ function CharacterCard({ character: c }: { character: CharacterRow }) {
       href={"/characters/" + c.id}
       className="group flex flex-col rounded-2xl bg-white p-3.5 transition-all duration-200 hover:bg-stone-50/80 active:scale-[0.98]"
     >
-      {/* Avatar */}
       <div className="w-full aspect-square rounded-xl bg-stone-100 overflow-hidden mb-3">
         {c.avatarUrl ? (
-          <img
-            src={c.avatarUrl}
-            alt={c.name}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
+          <img src={c.avatarUrl} alt={c.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <span className="text-stone-300 text-3xl font-light select-none">
-              {c.name.charAt(0)}
-            </span>
+            <span className="text-stone-300 text-3xl font-light select-none">{c.name.charAt(0)}</span>
           </div>
         )}
       </div>
-      {/* Name */}
-      <h3 className="text-sm font-medium text-neutral-800 truncate leading-snug">
-        {c.name}
-      </h3>
-      {/* Description */}
+      <h3 className="text-sm font-medium text-neutral-800 truncate leading-snug">{c.name}</h3>
       {desc && (
-        <p className="text-[11px] text-stone-400 leading-relaxed mt-0.5 line-clamp-2">
-          {desc}
-        </p>
+        <p className="text-[11px] text-stone-400 leading-relaxed mt-0.5 line-clamp-2">{desc}</p>
       )}
       {c.isOfficial && (
-        <span className="inline-block mt-1.5 text-[10px] text-stone-300 bg-stone-50 px-1.5 py-0.5 rounded-md">
-          官方
-        </span>
+        <span className="inline-block mt-1.5 text-[10px] text-stone-300 bg-stone-50 px-1.5 py-0.5 rounded-md">官方</span>
       )}
     </Link>
   );

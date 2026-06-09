@@ -20,9 +20,7 @@ export default function ChatListPage() {
   const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/login");
-    }
+    if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
 
   const fetchChats = useCallback(async () => {
@@ -33,24 +31,20 @@ export default function ChatListPage() {
       });
       const data = await res.json();
       if (data.success) {
-        const allChars = [...(data.data.official || []), ...(data.data.user || [])];
-        // Show all characters as potential chat targets
-        const previews: ChatPreview[] = allChars.map((c: any) => ({
+        const all = [...(data.data.official || []), ...(data.data.user || [])];
+        setChats(all.map((c: any) => ({
           characterId: c.id,
           characterName: c.name,
           avatarUrl: c.avatarUrl,
           lastMessage: c.lastMessage || "开始对话吧",
           lastMessageAt: c.lastMessageAt || c.updatedAt || c.createdAt,
-        }));
-        setChats(previews);
+        })));
       }
     } catch { /* ignore */ }
     setFetching(false);
   }, [token]);
 
-  useEffect(() => {
-    if (user) fetchChats();
-  }, [fetchChats, user]);
+  useEffect(() => { if (user) fetchChats(); }, [fetchChats, user]);
 
   if (loading || !user || fetching) {
     return (
@@ -60,17 +54,13 @@ export default function ChatListPage() {
     );
   }
 
-  const isEmpty = chats.length === 0;
-
   return (
     <div className="flex h-dvh flex-col bg-stone-50">
-      {/* Header */}
-      <div className="px-6 pt-12 pb-4">
-        <h1 className="text-lg font-semibold text-neutral-900">聊天</h1>
-      </div>
+      <header className="shrink-0 px-6 pt-12 pb-4">
+        <h1 className="text-lg font-semibold tracking-tight text-neutral-900">聊天</h1>
+      </header>
 
-      {/* Content */}
-      {isEmpty ? (
+      {chats.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center px-8 pb-24">
           <div className="w-16 h-16 rounded-2xl bg-stone-100 flex items-center justify-center mb-5">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#a8a29e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -87,59 +77,115 @@ export default function ChatListPage() {
           </Link>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto px-4">
+        <div className="flex-1 overflow-y-auto px-4 pb-24">
           {chats.map((chat) => (
             <Link
               key={chat.characterId}
-              href={`/chat/${chat.characterId}`}
+              href={"/chat/" + chat.characterId}
               className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/60 transition-colors"
             >
-              {/* Avatar */}
-              <div className="w-12 h-12 rounded-full bg-stone-200 flex items-center justify-center overflow-hidden shrink-0">
+              <div className="w-12 h-12 rounded-full bg-stone-200 overflow-hidden shrink-0 flex items-center justify-center">
                 {chat.avatarUrl ? (
-                  <img src={chat.avatarUrl} alt={chat.characterName} className="w-full h-full object-cover" />
+                  <img src={chat.avatarUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-stone-400 text-sm font-medium">
-                    {chat.characterName.slice(0, 2)}
-                  </span>
+                  <span className="text-stone-400 text-sm font-medium">{chat.characterName.slice(0, 2)}</span>
                 )}
               </div>
-              {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-neutral-800 truncate">
-                    {chat.characterName}
-                  </span>
-                  <span className="text-[11px] text-stone-300 shrink-0 ml-2">
-                    {formatTime(chat.lastMessageAt)}
-                  </span>
+                  <span className="text-sm font-medium text-neutral-800 truncate">{chat.characterName}</span>
+                  <span className="text-[11px] text-stone-300 shrink-0 ml-2">{fmt(chat.lastMessageAt)}</span>
                 </div>
-                <p className="text-xs text-stone-400 truncate mt-0.5">
-                  {chat.lastMessage}
-                </p>
+                <p className="text-xs text-stone-400 truncate mt-0.5">{chat.lastMessage}</p>
               </div>
             </Link>
           ))}
         </div>
       )}
+
+      <BottomNav current="chat" />
     </div>
   );
 }
 
-function formatTime(iso: string): string {
+function fmt(iso: string): string {
   try {
-    const d = new Date(iso);
-    const now = new Date();
-    const diff = now.getTime() - d.getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "刚刚";
-    if (mins < 60) return `${mins}分钟前`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}小时前`;
-    const days = Math.floor(hours / 24);
-    if (days < 7) return `${days}天前`;
-    return `${d.getMonth() + 1}/${d.getDate()}`;
-  } catch {
-    return "";
-  }
+    const d = new Date(iso), n = new Date();
+    const m = Math.floor((n.getTime() - d.getTime()) / 60000);
+    if (m < 1) return "刚刚";
+    if (m < 60) return m + "分钟前";
+    const h = Math.floor(m / 60);
+    if (h < 24) return h + "小时前";
+    const dy = Math.floor(h / 24);
+    if (dy < 7) return dy + "天前";
+    return (d.getMonth() + 1) + "/" + d.getDate();
+  } catch { return ""; }
+}
+
+// ─── Bottom Navigation ───
+
+function BottomNav({ current }: { current: string }) {
+  const tabs = [
+    { key: "characters", label: "角色", href: "/characters", icon: CharsIcon },
+    { key: "chat", label: "聊天", href: "/chat", icon: ChatIcon },
+    { key: "shop", label: "商店", href: "/shop", icon: ShopIcon },
+    { key: "me", label: "我的", href: "/me", icon: MeIcon },
+  ] as const;
+
+  return (
+    <nav className="shrink-0 flex items-center justify-around border-t border-stone-100 bg-stone-50 h-14">
+      {tabs.map((tab) => {
+        const active = tab.key === current;
+        return (
+          <a
+            key={tab.key}
+            href={tab.href}
+            className={
+              "flex flex-col items-center justify-center gap-0.5 w-16 h-full text-[10px] transition-colors duration-200 " +
+              (active ? "text-neutral-900" : "text-stone-300 hover:text-stone-400")
+            }
+          >
+            <tab.icon active={active} />
+            <span>{tab.label}</span>
+          </a>
+        );
+      })}
+    </nav>
+  );
+}
+
+function CharsIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <circle cx="10" cy="7" r="3.5" stroke={active ? "#1C1C1C" : "#D6D3D1"} strokeWidth="1.5" />
+      <path d="M4 17c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke={active ? "#1C1C1C" : "#D6D3D1"} strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ChatIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <path d="M6 5h8M6 9h5" stroke={active ? "#1C1C1C" : "#D6D3D1"} strokeWidth="1.5" strokeLinecap="round" />
+      <rect x="3" y="2" width="14" height="12" rx="2" stroke={active ? "#1C1C1C" : "#D6D3D1"} strokeWidth="1.5" />
+      <path d="M7 14l-2 3h10l-2-3" stroke={active ? "#1C1C1C" : "#D6D3D1"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ShopIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <path d="M4 7l1-4h10l1 4M4 7v9a1 1 0 001 1h10a1 1 0 001-1V7M4 7h12" stroke={active ? "#1C1C1C" : "#D6D3D1"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function MeIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <circle cx="10" cy="6" r="3" stroke={active ? "#1C1C1C" : "#D6D3D1"} strokeWidth="1.5" />
+      <path d="M4 17c0-3 2.7-5.5 6-5.5s6 2.5 6 5.5" stroke={active ? "#1C1C1C" : "#D6D3D1"} strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
 }
