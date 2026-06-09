@@ -22,6 +22,9 @@ import {
 } from "../auth/redis-session";
 import { Resend } from "resend";
 import { userRepository } from "../repositories/user.repository";
+import { characterRepository } from "../repositories/character.repository";
+import fs from "fs";
+import path from "path";
 import { getEnv } from "@/lib/env";
 
 const BCRYPT_ROUNDS = 12;
@@ -101,13 +104,13 @@ export async function registerWithCode(
   }
   await deleteVerificationCode(normalized);
 
-  if (password.length < 6) return { error: "密码至少 6 位", status: 400 };
+  if (password.length < 6) return { error: "密码至少6位", status: 400 };
   if (!/[a-zA-Z]/.test(password)) return { error: "密码需包含字母", status: 400 };
   if (!/[0-9]/.test(password)) return { error: "密码需包含数字", status: 400 };
 
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
-  await userRepository.create({
+  const newUser = await userRepository.create({
     email: normalized,
     passwordHash,
     role: "USER",
@@ -116,7 +119,13 @@ export async function registerWithCode(
     hasPurchasedVip: false,
   });
 
-  console.log("[auth:register] User created:", normalized);
+  console.log("[auth:register] User created:", normalized, "| id:", newUser.id);
+
+  // 注入官方角色（异步，不阻塞注册响应）
+  injectOfficialCharacters(newUser.id).catch((err) => {
+    console.error("[auth:register] Failed to inject official characters:", err instanceof Error ? err.message : String(err));
+  });
+
   return { message: "注册成功，请使用新密码登录" };
 }
 
@@ -270,10 +279,61 @@ async function hashToken(token: string): Promise<string> {
     .join("");
 }
 
+
+/**
+ * 新用户注册后自动注入两个官方角色。
+ * 从 src/server/data/official-characters.json 读取角色模板，
+ * 绑定到新用户的 userId 并写入 characters 表。
+ * 异步执行，不阻塞注册响应。
+ */
+async function injectOfficialCharacters(userId: string): Promise<void> {
+  const dataPath = path.join(process.cwd(), "src", "server", "data", "official-characters.json");
+  const raw = fs.readFileSync(dataPath, "utf-8");
+  const templates: Array<{
+    name: string;
+    setting: string;
+    greeting: string;
+    avatar?: string;
+    advanced_definitions?: {
+      personality?: string;
+      scenario?: string;
+      dialogueExamples?: string;
+    };
+    extended_fields?: {
+      nickname?: string;
+      groupGreeting?: string;
+    };
+    system_instructions?: {
+      mainPrompt?: string;
+      postHistoryInstructions?: string;
+    };
+  }> = JSON.parse(raw);
+
+  for (const t of templates) {
+    await characterRepository.create({
+      userId,
+      name: t.name,
+      setting: t.setting,
+      greeting: t.greeting,
+      avatarUrl: t.avatar || null,
+      personality: t.advanced_definitions?.personality || null,
+      scenario: t.advanced_definitions?.scenario || null,
+      dialogueExamples: t.advanced_definitions?.dialogueExamples || null,
+      nickname: t.extended_fields?.nickname || null,
+      groupGreeting: t.extended_fields?.groupGreeting || null,
+      mainPrompt: t.system_instructions?.mainPrompt || null,
+      postHistoryInstructions: t.system_instructions?.postHistoryInstructions || null,
+      isOfficial: false,
+      version: 1,
+    });
+  }
+}
+
 export const authService = {
   generateCaptcha,
   verifyCaptchaAndSendCode,
   registerWithCode,
+  injectOfficialCharacters,
   loginWithPassword,
   sendVerificationCode,
   loginWithCode,

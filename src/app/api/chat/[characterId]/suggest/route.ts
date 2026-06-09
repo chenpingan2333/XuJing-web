@@ -1,3 +1,5 @@
+﻿export const runtime = 'edge';
+
 import { requireAuth } from "../../../_base/auth";
 import { jsonOk, jsonErr } from "../../../_base/response";
 import { chatService } from "@/server/services/chat.service";

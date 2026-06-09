@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
 
 // ─── Types ───
@@ -14,6 +14,7 @@ interface ParsedCharacter {
   scenario?: string;
   dialogueExamples?: string;
   nickname?: string;
+  groupGreeting?: string;
   mainPrompt?: string;
   postHistoryInstructions?: string;
 }
@@ -25,65 +26,85 @@ interface ImportCharacterModalProps {
   token: string | null;
 }
 
-// ─── Format Adapter ───
+// ─── Format Adapters ───
 
+/** Detect if JSON matches the user's nested Xujing template */
+function isXujingNested(data: any): boolean {
+  return (
+    typeof data?.name === "string" &&
+    typeof data?.setting === "string" &&
+    typeof data?.greeting === "string" &&
+    (data?.advanced_definitions !== undefined ||
+      data?.extended_fields !== undefined ||
+      data?.system_instructions !== undefined)
+  );
+}
+
+/** Detect Tavern Card v2 */
 function isTavernCard(data: any): boolean {
   return data?.spec === "chara_card_v2" && data?.spec_version === "2.0" && data?.data;
 }
 
-function isSillyTavernCard(data: any): boolean {
-  return !isTavernCard(data) && (data?.first_mes || data?.description);
-}
-
-function isXujingCard(data: any): boolean {
-  return data?.name && data?.setting && data?.greeting && !data?.spec;
+/** Detect legacy flat Xujing / SillyTavern */
+function isLegacyCard(data: any): boolean {
+  return (
+    typeof data?.name === "string" &&
+    typeof data?.setting === "string" &&
+    typeof data?.greeting === "string" &&
+    !data?.advanced_definitions &&
+    !data?.spec
+  );
 }
 
 function adaptCharacter(data: any): ParsedCharacter | null {
+  // Xujing nested template (priority)
+  if (isXujingNested(data)) {
+    return {
+      name: data.name?.trim() || "",
+      setting: data.setting?.trim() || "",
+      greeting: data.greeting?.trim() || "",
+      avatarUrl: data.avatar || "",
+      personality: data.advanced_definitions?.personality?.trim() || "",
+      scenario: data.advanced_definitions?.scenario?.trim() || "",
+      dialogueExamples: data.advanced_definitions?.dialogueExamples?.trim() || "",
+      nickname: data.extended_fields?.nickname?.trim() || "",
+      groupGreeting: data.extended_fields?.groupGreeting?.trim() || "",
+      mainPrompt: data.system_instructions?.mainPrompt?.trim() || "",
+      postHistoryInstructions: data.system_instructions?.postHistoryInstructions?.trim() || "",
+    };
+  }
+
   // Tavern Card v2
   if (isTavernCard(data)) {
     const d = data.data;
     return {
-      name: d.name || "",
-      setting: d.description || d.personality || "",
-      greeting: d.first_mes || "",
-      personality: d.personality || "",
-      scenario: d.scenario || "",
-      dialogueExamples: d.mes_example || "",
+      name: d.name?.trim() || "",
+      setting: d.description?.trim() || d.personality?.trim() || "",
+      greeting: d.first_mes?.trim() || "",
+      personality: d.personality?.trim() || "",
+      scenario: d.scenario?.trim() || "",
+      dialogueExamples: d.mes_example?.trim() || "",
       nickname: "",
-      mainPrompt: d.system_prompt || d.creator_notes || "",
-      postHistoryInstructions: d.post_history_instructions || "",
+      groupGreeting: "",
+      mainPrompt: d.system_prompt?.trim() || d.creator_notes?.trim() || "",
+      postHistoryInstructions: d.post_history_instructions?.trim() || "",
     };
   }
 
-  // SillyTavern / generic card
-  if (isSillyTavernCard(data)) {
+  // Legacy flat (Xujing or SillyTavern)
+  if (isLegacyCard(data)) {
     return {
-      name: data.name || "",
-      setting: data.description || data.personality || "",
-      greeting: data.first_mes || data.greeting || "",
-      personality: data.personality || "",
-      scenario: data.scenario || "",
-      dialogueExamples: data.mes_example || data.dialogue_examples || "",
-      nickname: data.nickname || "",
-      mainPrompt: data.system_prompt || data.main_prompt || data.creator_notes || "",
-      postHistoryInstructions: data.post_history_instructions || "",
-    };
-  }
-
-  // Xujing native
-  if (isXujingCard(data)) {
-    return {
-      name: data.name,
-      setting: data.setting,
-      greeting: data.greeting,
+      name: data.name?.trim() || "",
+      setting: data.setting?.trim() || data.description?.trim() || "",
+      greeting: data.greeting?.trim() || data.first_mes?.trim() || "",
       avatarUrl: data.avatar_url || data.avatarUrl || "",
-      personality: data.personality || "",
-      scenario: data.scenario || "",
-      dialogueExamples: data.dialogue_examples || data.dialogueExamples || "",
-      nickname: data.nickname || "",
-      mainPrompt: data.main_prompt || data.mainPrompt || "",
-      postHistoryInstructions: data.post_history_instructions || data.postHistoryInstructions || "",
+      personality: data.personality?.trim() || "",
+      scenario: data.scenario?.trim() || "",
+      dialogueExamples: (data.dialogue_examples || data.dialogueExamples || data.mes_example || "").trim(),
+      nickname: data.nickname?.trim() || "",
+      groupGreeting: data.group_greeting?.trim() || "",
+      mainPrompt: (data.main_prompt || data.mainPrompt || data.system_prompt || data.creator_notes || "").trim(),
+      postHistoryInstructions: (data.post_history_instructions || data.postHistoryInstructions || "").trim(),
     };
   }
 
@@ -91,10 +112,10 @@ function adaptCharacter(data: any): ParsedCharacter | null {
 }
 
 function validateCharacter(c: ParsedCharacter): string | null {
-  if (!c.name?.trim()) return "角色卡缺少必要字段（名字）";
-  if (!c.setting?.trim()) return "角色卡缺少必要字段（角色设定）";
-  if (!c.greeting?.trim()) return "角色卡缺少必要字段（开场白）";
-  if (c.name.length > 10) return "角色名字最长 10 个中文字符";
+  if (!c.name) return "缺少角色名称";
+  if (!c.setting) return "缺少角色设定";
+  if (!c.greeting) return "缺少开场白";
+  if (c.name.length > 10) return "角色名称最长 10 个中文字符";
   if (c.greeting.length > 200) return "开场白最长 200 字";
   if (c.setting.length > 10000) return "角色设定最长 10000 字";
   return null;
@@ -110,23 +131,29 @@ export default function ImportCharacterModal({
 }: ImportCharacterModalProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
   const [step, setStep] = useState<"choose" | "preview" | "importing">("choose");
   const [parsed, setParsed] = useState<ParsedCharacter | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-  const [rawData, setRawData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  // Image upload state
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
 
   if (!open) return null;
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2500);
-  };
 
   const reset = () => {
     setStep("choose");
     setParsed(null);
-    setRawData(null);
+    setError(null);
+    setAvatarFile(null);
+    setAvatarPreview("");
+    setIsDragOver(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
+    if (imageInputRef.current) imageInputRef.current.value = "";
   };
 
   const handleClose = () => {
@@ -134,20 +161,13 @@ export default function ImportCharacterModal({
     onClose();
   };
 
-  const handleFilePick = () => {
-    fileInputRef.current?.click();
-  };
+  // ─── JSON File Handling ───
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file extension
+  const processFile = (file: File) => {
     if (!file.name.toLowerCase().endsWith(".json")) {
-      showToast("请选择有效的 JSON 角色卡文件");
+      setError("请选择有效的 .json 角色卡文件");
       return;
     }
-
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
@@ -156,90 +176,174 @@ export default function ImportCharacterModal({
         const adapted = adaptCharacter(data);
 
         if (!adapted) {
-          showToast("该文件不是有效的角色卡格式");
+          setError("无法识别此角色卡格式，请使用叙境、Tavern v2 或 SillyTavern 格式");
           return;
         }
 
         const err = validateCharacter(adapted);
-        if (err) {
-          showToast(err);
-          return;
-        }
+        if (err) { setError(err); return; }
 
-        setRawData(data);
+        setError(null);
         setParsed(adapted);
         setStep("preview");
       } catch {
-        showToast("该文件不是有效的角色卡格式");
+        setError("JSON 格式错误，请检查文件内容");
       }
     };
     reader.readAsText(file);
   };
 
+  const handleFilePick = () => fileInputRef.current?.click();
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  // Drag & Drop
+  const handleDragOver = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
+  }, []);
+
+  // ─── Image Upload ───
+
+  const handleImagePick = () => imageInputRef.current?.click();
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setError("图片不能超过 10MB");
+      return;
+    }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setError("仅支持 jpg / png / webp 格式");
+      return;
+    }
+    setError(null);
+    setAvatarFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setAvatarPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  // ─── Submit ───
+
   const handleImport = async () => {
     if (!parsed || !token) return;
     setStep("importing");
+    setError(null);
+
     try {
+      let avatarUrl = parsed.avatarUrl || "";
+
+      // Upload avatar if user selected a new file
+      if (avatarFile) {
+        setUploading(true);
+        try {
+          const formData = new FormData();
+          formData.append("file", avatarFile);
+          const uploadRes = await fetch("/api/upload", {
+            method: "POST",
+            headers: { Authorization: "Bearer " + token },
+            body: formData,
+          });
+          const uploadData = await uploadRes.json();
+          if (uploadData.success) {
+            avatarUrl = uploadData.data.url;
+          } else {
+            setError("头像上传失败: " + (uploadData.error || "未知错误"));
+            setStep("preview");
+            setUploading(false);
+            return;
+          }
+        } catch {
+          setError("头像上传失败，请重试");
+          setStep("preview");
+          setUploading(false);
+          return;
+        }
+        setUploading(false);
+      }
+
       const res = await fetch("/api/characters", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token,
+        },
         body: JSON.stringify({
           name: parsed.name,
           setting: parsed.setting,
           greeting: parsed.greeting,
+          avatar_url: avatarUrl || undefined,
           personality: parsed.personality || undefined,
           scenario: parsed.scenario || undefined,
           dialogue_examples: parsed.dialogueExamples || undefined,
           nickname: parsed.nickname || undefined,
+          group_greeting: parsed.groupGreeting || undefined,
           main_prompt: parsed.mainPrompt || undefined,
           post_history_instructions: parsed.postHistoryInstructions || undefined,
         }),
       });
+
       const result = await res.json();
       if (!result.success) {
-        showToast(result.error || "导入失败");
+        setError(result.error || "导入失败");
         setStep("preview");
         return;
       }
+
       reset();
       onImported();
+      // Navigate to chat
+      if (result.data?.id) {
+        router.push("/chat/" + result.data.id);
+      }
     } catch {
-      showToast("网络错误，请重试");
+      setError("网络错误，请重试");
       setStep("preview");
     }
   };
 
-  const hasAdvanced = parsed && (
-    parsed.personality || parsed.scenario || parsed.dialogueExamples ||
-    parsed.nickname || parsed.mainPrompt || parsed.postHistoryInstructions
-  );
+  const hasAdvanced =
+    parsed &&
+    (parsed.personality ||
+      parsed.scenario ||
+      parsed.dialogueExamples ||
+      parsed.nickname ||
+      parsed.groupGreeting);
+
+  const hasSystem =
+    parsed && (parsed.mainPrompt || parsed.postHistoryInstructions);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-stone-900/20 backdrop-blur-sm"
+        className="absolute inset-0 bg-stone-900/20 backdrop-blur-sm transition-opacity"
         onClick={handleClose}
       />
 
-      {/* Toast */}
-      {toast && (
-        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-50 rounded-xl bg-neutral-900 px-5 py-2.5 text-xs text-stone-50 shadow-lg animate-in fade-in slide-in-from-top-2">
-          {toast}
-        </div>
-      )}
-
       {/* Modal */}
-      <div className="relative w-full sm:max-w-sm mx-4 bg-white rounded-2xl shadow-xl animate-in fade-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95">
-        {/* Hidden file input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json"
-          onChange={handleFileChange}
-          className="hidden"
-        />
+      <div className="relative w-full sm:max-w-sm mx-4 max-h-[85dvh] overflow-y-auto bg-white rounded-2xl shadow-xl animate-in fade-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95">
+        <input ref={fileInputRef} type="file" accept=".json" onChange={handleFileChange} className="hidden" />
+        <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageChange} className="hidden" />
 
+        {/* ── Step: Choose ── */}
         {step === "choose" && (
           <div className="p-6">
             <h2 className="text-base font-semibold text-neutral-900 mb-5">创建角色</h2>
@@ -258,7 +362,7 @@ export default function ImportCharacterModal({
               </button>
             </div>
             <p className="mt-4 text-center text-[10px] text-stone-300 leading-relaxed">
-              支持叙境角色卡、Tavern Character Card、SillyTavern 角色卡格式
+              支持叙境格式、Tavern Character Card、SillyTavern 角色卡
             </p>
             <button
               onClick={handleClose}
@@ -269,19 +373,26 @@ export default function ImportCharacterModal({
           </div>
         )}
 
+        {/* ── Step: Preview ── */}
         {step === "preview" && parsed && (
           <div className="p-6">
             <h2 className="text-base font-semibold text-neutral-900 mb-5">预览角色卡</h2>
 
             {/* Avatar + Name */}
             <div className="flex items-center gap-4 mb-5">
-              <div className="w-16 h-16 rounded-2xl bg-stone-100 overflow-hidden shrink-0 flex items-center justify-center">
-                {parsed.avatarUrl ? (
+              <button
+                onClick={handleImagePick}
+                className="w-16 h-16 rounded-2xl bg-stone-100 overflow-hidden shrink-0 flex items-center justify-center hover:ring-2 hover:ring-stone-200 transition-all"
+                title="点击更换头像"
+              >
+                {avatarPreview ? (
+                  <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
+                ) : parsed.avatarUrl ? (
                   <img src={parsed.avatarUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-stone-300 text-2xl font-light">{parsed.name.charAt(0)}</span>
                 )}
-              </div>
+              </button>
               <div className="min-w-0">
                 <h3 className="text-sm font-medium text-neutral-800 truncate">{parsed.name}</h3>
                 {parsed.nickname && (
@@ -290,40 +401,51 @@ export default function ImportCharacterModal({
               </div>
             </div>
 
-            {/* Setting preview */}
-            <div className="mb-4">
-              <span className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">角色设定</span>
-              <p className="mt-1 text-xs text-stone-600 leading-relaxed line-clamp-3">
-                {parsed.setting}
-              </p>
-            </div>
+            {/* Setting */}
+            <Section label="角色设定">
+              <p className="text-xs text-stone-600 leading-relaxed line-clamp-3">{parsed.setting}</p>
+            </Section>
 
-            {/* Greeting preview */}
-            <div className="mb-4">
-              <span className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">开场白</span>
-              <p className="mt-1 text-xs text-stone-600 leading-relaxed line-clamp-2">
-                {parsed.greeting}
-              </p>
-            </div>
+            {/* Greeting */}
+            <Section label="开场白">
+              <p className="text-xs text-stone-600 leading-relaxed line-clamp-2">{parsed.greeting}</p>
+            </Section>
 
-            {/* Advanced fields indicator */}
+            {/* Advanced */}
             {hasAdvanced && (
-              <div className="mb-5 rounded-xl bg-stone-50 p-3">
-                <span className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">高级设定</span>
+              <div className="mb-4 rounded-xl bg-stone-50 p-3">
+                <span className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">高级定义</span>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {parsed.personality && <Tag label="性格特点" />}
                   {parsed.scenario && <Tag label="情景设定" />}
                   {parsed.dialogueExamples && <Tag label="对话示例" />}
-                  {parsed.mainPrompt && <Tag label="系统指令" />}
-                  {parsed.postHistoryInstructions && <Tag label="历史指令" />}
+                  {parsed.nickname && <Tag label="昵称" />}
+                  {parsed.groupGreeting && <Tag label="群聊开场白" />}
                 </div>
+              </div>
+            )}
+
+            {hasSystem && (
+              <div className="mb-4 rounded-xl bg-stone-50 p-3">
+                <span className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">系统指令</span>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {parsed.mainPrompt && <Tag label="Main Prompt" />}
+                  {parsed.postHistoryInstructions && <Tag label="Post History" />}
+                </div>
+              </div>
+            )}
+
+            {/* Error */}
+            {error && (
+              <div className="mb-4 rounded-xl bg-stone-50 px-4 py-3 text-xs text-stone-500">
+                {error}
               </div>
             )}
 
             {/* Actions */}
             <div className="flex gap-3">
               <button
-                onClick={() => { setStep("choose"); setParsed(null); }}
+                onClick={() => { setStep("choose"); setParsed(null); setAvatarFile(null); setAvatarPreview(""); setError(null); }}
                 className="flex-1 rounded-xl border border-stone-200 py-2.5 text-xs font-medium text-stone-500 hover:bg-stone-50 transition-colors"
               >
                 取消
@@ -333,22 +455,36 @@ export default function ImportCharacterModal({
                 disabled={(step as string) === "importing"}
                 className="flex-1 rounded-xl bg-neutral-900 py-2.5 text-xs font-medium text-stone-50 hover:bg-neutral-800 transition-colors active:scale-[0.98] disabled:opacity-50"
               >
-                {(step as string) === "importing" ? "导入中..." : "确认导入"}
+                {(step as string) === "importing" ? (uploading ? "上传头像..." : "导入中...") : "确认导入"}
               </button>
             </div>
           </div>
         )}
 
+        {/* ── Step: Importing ── */}
         {step === "importing" && (
           <div className="p-10 flex flex-col items-center justify-center gap-3">
             <svg className="animate-spin h-6 w-6 text-stone-400" viewBox="0 0 20 20" fill="none">
               <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="2" strokeOpacity="0.2" />
               <path d="M10 2a8 8 0 017.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
-            <span className="text-xs text-stone-400">正在导入角色...</span>
+            <span className="text-xs text-stone-400">
+              {uploading ? "正在上传头像..." : "正在导入角色..."}
+            </span>
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── Helpers ───
+
+function Section({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-4">
+      <span className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">{label}</span>
+      <div className="mt-1">{children}</div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 
 /**
  * 环境变量 Schema — Phase 3.6 运行时校验
@@ -19,6 +19,9 @@ const envSchema = z.object({
 
   // ── Redis ──
   REDIS_URL: z.string().optional(),
+
+  // ─── 对象存储 (Vercel Blob) ───
+  BLOB_READ_WRITE_TOKEN: z.string().optional(),
 
   // ── 邮件（Resend）──
   // 可选：未配置时验证码降级为 console.log 输出

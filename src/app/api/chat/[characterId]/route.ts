@@ -1,4 +1,4 @@
-/**
+﻿/**
  * GET /api/chat/[characterId] — Chat History
  *
  * 返回当前用户与指定角色的扁平历史消息（最新在前）。
@@ -8,6 +8,8 @@
  *   ?limit=50    — 每页条数（默认 50，最大 100）
  *   ?before=msgId — 游标分页（可选）
  */
+
+export const runtime = 'edge';
 
 import { jsonOk, jsonErr } from "../../_base/response";
 import { requireAuth } from "../../_base/auth";
