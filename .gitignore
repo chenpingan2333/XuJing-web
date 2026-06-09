@@ -50,3 +50,5 @@ vfy_p6.js
 tests/_write_docs.js
 qc
 query
+.vercel
+.env*
