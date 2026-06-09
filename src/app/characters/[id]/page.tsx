@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useAuth } from "@/lib/use-auth";
 import { useRouter } from "next/navigation";
@@ -102,16 +102,16 @@ export default function EditCharacterPage({ params }: { params: Promise<{ id: st
     reader.readAsDataURL(file);
   };
 
-  if (loading || fetching) {
-    return <div className="flex h-dvh items-center justify-center text-gray-400">加载中...</div>;
-  }
-
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
 
-  if (loading || !user) {
-    return <div className="flex h-dvh items-center justify-center text-gray-400">加载中...</div>;
+  if (loading || fetching) {
+    return <div className="flex h-dvh items-center justify-center text-gray-400">加载中…</div>;
+  }
+
+  if (!user) {
+    return <div className="flex h-dvh items-center justify-center text-gray-400">跳转中…</div>;
   }
 
   const canSave = !isOfficial && name.trim() && setting.trim() && greeting.trim();
