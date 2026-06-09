@@ -1,15 +1,17 @@
-﻿"use client";
+"use client";
 
 import { useAuth } from "@/lib/use-auth";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDisplayId } from "@/lib/utils";
+import { useApiStatus } from "@/lib/use-api-status";
 
 export default function SettingsPage() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const [nickname, setNickname] = useState("叙境旅人");
   const [saved, setSaved] = useState(false);
+  const { configured, configName } = useApiStatus();
 
   if (loading) {
     return (
@@ -50,6 +52,8 @@ export default function SettingsPage() {
       : user.subscription === "vip"
         ? "bg-amber-100 text-amber-700"
         : "bg-gray-100 text-gray-600";
+
+  const isVip = user.subscription === "vip";
 
   return (
     <div className="flex h-dvh flex-col">
@@ -130,19 +134,15 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between px-4 py-3">
               <span className="text-sm text-gray-600">订阅</span>
               <span
-                className={`text-sm font-medium ${user.subscription === "vip" ? "text-amber-600" : "text-gray-500"}`}
+                className={`text-sm font-medium ${isVip ? "text-amber-600" : "text-gray-500"}`}
               >
-                {user.subscription === "vip" ? "VIP" : "免费"}
+                {isVip ? "VIP" : "免费"}
               </span>
             </div>
             <div className="flex items-center justify-between px-4 py-3">
               <span className="text-sm text-gray-600">API Key 状态</span>
-              <span
-                className={`text-sm ${user.subscription === "vip" ? "text-green-600" : "text-red-500"}`}
-              >
-                {user.subscription === "vip"
-                  ? "可使用系统模型 + 可选自带 Key"
-                  : "请配置 API Key 才能使用 AI"}
+              <span className={`text-sm ${isVip ? "text-green-600" : configured ? "text-green-600" : "text-red-500"}`}>
+                {isVip ? "叙境专属模型" : configured ? (configName ?? "已配置") : "未配置"}
               </span>
             </div>
             <div
@@ -156,7 +156,7 @@ export default function SettingsPage() {
         </section>
 
         {/* VIP Info */}
-        {user.subscription === "vip" && (
+        {isVip && (
           <section>
             <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
               VIP 权益
@@ -191,7 +191,7 @@ export default function SettingsPage() {
         )}
 
         {/* Non-VIP reminder */}
-        {user.subscription === "free" && user.role !== "ADMIN" && (
+        {!isVip && user.role !== "ADMIN" && (
           <section>
             <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
               升级提示

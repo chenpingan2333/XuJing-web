@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useAuth } from "@/lib/use-auth";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { invalidateApiStatus } from "@/lib/use-api-status";
 
 const PLATFORM_PRESETS: Record<string, { label: string; url: string; modelHint: string; isCustom: boolean }> = {
   OPENAI:           { label: "GPT (OpenAI)",         url: "https://api.openai.com",                      modelHint: "gpt-4.1",                isCustom: false },
@@ -87,6 +88,7 @@ export default function NewApiConnectionPage() {
       const data = await res.json();
       if (data.success) {
         showToast("success", "创建成功");
+        invalidateApiStatus();
         setTimeout(() => router.push("/api-connections"), 800);
       } else {
         setError(data.error || "创建失败");

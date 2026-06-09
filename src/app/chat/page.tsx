@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useAuth } from "@/lib/use-auth";
 import { useState, useEffect, useCallback } from "react";
@@ -10,7 +10,7 @@ interface ChatPreview {
   characterName: string;
   avatarUrl?: string;
   lastMessage: string;
-  lastMessageAt: string;
+  lastMessageAt?: string;
 }
 
 export default function ChatListPage() {
@@ -32,13 +32,36 @@ export default function ChatListPage() {
       const data = await res.json();
       if (data.success) {
         const all = [...(data.data.official || []), ...(data.data.user || [])];
-        setChats(all.map((c: any) => ({
-          characterId: c.id,
-          characterName: c.name,
-          avatarUrl: c.avatarUrl,
-          lastMessage: c.lastMessage || "开始对话吧",
-          lastMessageAt: c.lastMessageAt || c.updatedAt || c.createdAt,
-        })));
+        // Enrich with real last messages from backend
+        const enriched = await Promise.all(
+          all.map(async (c: any) => {
+            try {
+              const msgRes = await fetch("/api/chat/" + c.id, {
+                headers: { Authorization: "Bearer " + token },
+              });
+              const msgData = await msgRes.json();
+              if (msgData.success && msgData.data) {
+                const msgs: any[] = msgData.data.messages ?? [];
+                const last = msgs[msgs.length - 1];
+                return {
+                  characterId: c.id,
+                  characterName: c.name,
+                  avatarUrl: c.avatarUrl,
+                  lastMessage: last?.content ?? "",
+                  lastMessageAt: last?.createdAt ?? undefined,
+                };
+              }
+            } catch { /* skip */ }
+            return {
+              characterId: c.id,
+              characterName: c.name,
+              avatarUrl: c.avatarUrl,
+              lastMessage: "",
+              lastMessageAt: undefined,
+            };
+          })
+        );
+        setChats(enriched);
       }
     } catch { /* ignore */ }
     setFetching(false);
@@ -94,9 +117,9 @@ export default function ChatListPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-neutral-800 truncate">{chat.characterName}</span>
-                  <span className="text-[11px] text-stone-300 shrink-0 ml-2">{fmt(chat.lastMessageAt)}</span>
+                  {chat.lastMessageAt && <span className="text-[11px] text-stone-300 shrink-0 ml-2">{fmt(chat.lastMessageAt)}</span>}
                 </div>
-                <p className="text-xs text-stone-400 truncate mt-0.5">{chat.lastMessage}</p>
+                {chat.lastMessage ? <p className="text-xs text-stone-400 truncate mt-0.5">{chat.lastMessage}</p> : null}
               </div>
             </Link>
           ))}

@@ -381,7 +381,7 @@ export class ChatService {
 
     // 7. Persona Setting (user's view of character)
     if (personaSetting) {
-      parts.push("\n【用户在你眼中的身份】\n" + personaSetting);
+      parts.push("\n[系统指令：你正在与以下用户对话：" + personaSetting + "]");
     }
 
     // 8. Post History Instructions (with {{original}} resolution)

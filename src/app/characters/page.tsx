@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useAuth } from "@/lib/use-auth";
 import { useState, useEffect, useCallback } from "react";
@@ -13,9 +13,35 @@ interface CharacterRow {
   setting?: string;
   personality?: string;
   isOfficial: boolean;
+  lastMessage?: string;
+  lastChatAt?: string;
 }
 
 const FREE_LIMIT = 2;
+
+function formatChatTime(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday = d.toDateString() === yesterday.toDateString();
+
+  if (isToday) {
+    return d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
+  }
+  if (isYesterday) return "昨天";
+
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
+  if (diffDays < 7) return diffDays + "天前";
+  return d.toLocaleDateString("zh-CN", { month: "short", day: "numeric" });
+}
+
+function truncateMsg(text: string, max = 12): string {
+  if (!text) return "";
+  return text.length > max ? text.slice(0, max) + "…" : text;
+}
 
 export default function CharactersPage() {
   const { user, loading, token } = useAuth();
@@ -33,6 +59,33 @@ export default function CharactersPage() {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
 
+  const enrichWithChatInfo = useCallback(async (chars: CharacterRow[]): Promise<CharacterRow[]> => {
+    if (!token || chars.length === 0) return chars;
+    try {
+      const enriched = await Promise.all(
+        chars.map(async (c) => {
+          try {
+            const res = await fetch("/api/chat/" + c.id, {
+              headers: { Authorization: "Bearer " + token },
+            });
+            const data = await res.json();
+            if (data.success && data.data) {
+              const msgs: any[] = data.data.messages ?? [];
+              const last = msgs[msgs.length - 1];
+              return {
+                ...c,
+                lastMessage: last?.content ?? undefined,
+                lastChatAt: last?.createdAt ?? undefined,
+              };
+            }
+          } catch { /* skip */ }
+          return c;
+        })
+      );
+      return enriched;
+    } catch { return chars; }
+  }, [token]);
+
   const fetchCharacters = useCallback(async () => {
     if (!token) return;
     try {
@@ -41,12 +94,18 @@ export default function CharactersPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setOfficial(data.data.official || []);
-        setUserChars(data.data.user || []);
+        const rawOfficial: CharacterRow[] = data.data.official || [];
+        const rawUser: CharacterRow[] = data.data.user || [];
+        const [enrichedOfficial, enrichedUser] = await Promise.all([
+          enrichWithChatInfo(rawOfficial),
+          enrichWithChatInfo(rawUser),
+        ]);
+        setOfficial(enrichedOfficial);
+        setUserChars(enrichedUser);
       }
     } catch { /* ignore */ }
     setFetching(false);
-  }, [token]);
+  }, [token, enrichWithChatInfo]);
 
   useEffect(() => { if (user) fetchCharacters(); }, [fetchCharacters, user]);
 
@@ -76,7 +135,7 @@ export default function CharactersPage() {
           <h1 className="text-lg font-semibold tracking-tight text-neutral-900">叙境</h1>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-[11px] text-stone-400">
-              {isVip ? "已创建 " + privateCount + " 个角色" : privateCount + " / " + FREE_LIMIT}
+              {isVip ? "已创建" + privateCount + " 个角色" : privateCount + " / " + FREE_LIMIT}
             </span>
             {atLimit && (
               <span className="text-[10px] text-stone-300 bg-stone-100 px-1.5 py-0.5 rounded-full">已满</span>
@@ -137,6 +196,36 @@ export default function CharactersPage() {
               ))}
             </div>
           )}
+
+          {/* API 连接入口 */}
+          {!isVip ? (
+            <div className="mt-8 mb-4">
+              <button
+                onClick={() => router.push("/api-connections")}
+                className="w-full rounded-xl border border-dashed border-stone-200 bg-white/60 py-4 text-center transition-all duration-200 hover:bg-stone-50 hover:border-stone-300 active:scale-[0.99]"
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#a8a29e" strokeWidth="1.5" strokeLinecap="round">
+                    <path d="M5 6V5a3 3 0 016 0v1" />
+                    <rect x="3" y="6" width="10" height="7" rx="1.5" />
+                    <circle cx="8" cy="9.5" r="0.75" fill="#a8a29e" />
+                  </svg>
+                  <span className="text-sm font-medium text-stone-500">API 连接</span>
+                </div>
+                <span className="block mt-0.5 text-[11px] text-stone-300">配置你自己的模型 API Key</span>
+              </button>
+            </div>
+          ) : (
+            <div className="mt-8 mb-4 rounded-xl bg-amber-50/60 border border-amber-100 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <span className="text-amber-500 text-sm">&#9733;</span>
+                <div>
+                  <span className="text-xs font-medium text-amber-800">叙境专属模型</span>
+                  <span className="block text-[10px] text-amber-600">VIP 自动使用 DeepSeek-V4-Flash</span>
+                </div>
+              </div>
+            </div>
+          )}
         </section>
       </div>
 
@@ -168,10 +257,22 @@ function CharacterCard({ character: c }: { character: CharacterRow }) {
           </div>
         )}
       </div>
-      <h3 className="text-sm font-medium text-neutral-800 truncate leading-snug">{c.name ?? "—"}</h3>
-      {desc && (
+
+      {/* Name + time row */}
+      <div className="flex items-start justify-between gap-1">
+        <h3 className="text-sm font-medium text-neutral-800 truncate leading-snug flex-1 min-w-0">{c.name ?? "…"}</h3>
+        {c.lastChatAt && (
+          <span className="text-[10px] text-stone-300 whitespace-nowrap mt-0.5">{formatChatTime(c.lastChatAt)}</span>
+        )}
+      </div>
+
+      {/* Last message preview */}
+      {c.lastMessage ? (
+        <p className="text-[11px] text-stone-400 leading-relaxed mt-1 line-clamp-2">{truncateMsg(c.lastMessage, 10)}</p>
+      ) : desc ? (
         <p className="text-[11px] text-stone-400 leading-relaxed mt-0.5 line-clamp-2">{desc}</p>
-      )}
+      ) : null}
+
       {c.isOfficial && (
         <span className="inline-block mt-1.5 text-[10px] text-stone-300 bg-stone-50 px-1.5 py-0.5 rounded-md">官方</span>
       )}
@@ -217,7 +318,6 @@ function CharsIcon({ active }: { active: boolean }) {
     </svg>
   );
 }
-
 function ChatIcon({ active }: { active: boolean }) {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -227,7 +327,6 @@ function ChatIcon({ active }: { active: boolean }) {
     </svg>
   );
 }
-
 function ShopIcon({ active }: { active: boolean }) {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -235,7 +334,6 @@ function ShopIcon({ active }: { active: boolean }) {
     </svg>
   );
 }
-
 function MeIcon({ active }: { active: boolean }) {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
