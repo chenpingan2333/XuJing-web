@@ -33,7 +33,7 @@ export function MessageList({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+    <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 border-2 border-red-500" style={{minHeight: "100px"}}>
       {messages.map((msg, idx) => {
         const isLastAi = msg.role === "ASSISTANT" && idx === lastAiIndex(messages);
         return (
