@@ -1,7 +1,8 @@
-"use client";
+﻿"use client";
 
 import { useAuth } from "@/lib/use-auth";
 import { useState } from "react";
+import { formatDisplayId } from "@/lib/utils";
 
 export default function SettingsPage() {
   const { user, loading, logout } = useAuth();
@@ -10,7 +11,9 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex h-dvh items-center justify-center text-gray-400">加载中...</div>
+      <div className="flex h-dvh items-center justify-center text-gray-400">
+        加载中...
+      </div>
     );
   }
 
@@ -28,8 +31,23 @@ export default function SettingsPage() {
     );
   }
 
-  const roleLabel = user.role === "ADMIN" ? "管理员" : user.subscription === "vip" ? "VIP 用户" : "普通用户";
-  const roleColor = user.role === "ADMIN" ? "bg-red-100 text-red-700" : user.subscription === "vip" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-600";
+  const displayId =
+    user.createdAt && user.uid
+      ? formatDisplayId(user.createdAt, user.uid)
+      : null;
+
+  const roleLabel =
+    user.role === "ADMIN"
+      ? "管理员"
+      : user.subscription === "vip"
+        ? "VIP 用户"
+        : "普通用户";
+  const roleColor =
+    user.role === "ADMIN"
+      ? "bg-red-100 text-red-700"
+      : user.subscription === "vip"
+        ? "bg-amber-100 text-amber-700"
+        : "bg-gray-100 text-gray-600";
 
   return (
     <div className="flex h-dvh flex-col">
@@ -47,7 +65,9 @@ export default function SettingsPage() {
       <div className="flex-1 overflow-y-auto px-5 space-y-5">
         {/* Avatar */}
         <section>
-          <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">头像</h2>
+          <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
+            头像
+          </h2>
           <div className="flex items-center gap-4 rounded-xl bg-gray-50 p-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-200 text-lg text-gray-400">
               {user.userId.slice(0, 2).toUpperCase()}
@@ -61,7 +81,9 @@ export default function SettingsPage() {
 
         {/* Nickname */}
         <section>
-          <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">昵称</h2>
+          <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
+            昵称
+          </h2>
           <div className="flex items-center gap-3 rounded-xl bg-gray-50 p-4">
             <input
               type="text"
@@ -81,7 +103,9 @@ export default function SettingsPage() {
 
         {/* Account Info */}
         <section>
-          <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">账户信息</h2>
+          <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
+            账户信息
+          </h2>
           <div className="rounded-xl bg-gray-50 divide-y divide-gray-100">
             <div className="flex items-center justify-between px-4 py-3">
               <span className="text-sm text-gray-600">邮箱</span>
@@ -89,24 +113,34 @@ export default function SettingsPage() {
             </div>
             <div className="flex items-center justify-between px-4 py-3">
               <span className="text-sm text-gray-600">用户 ID</span>
-              <span className="text-xs text-gray-400 font-mono">{user.userId.slice(0, 12)}...</span>
+              <span className="text-xs text-gray-400 font-mono">
+                {displayId ?? "—"}
+              </span>
             </div>
             <div className="flex items-center justify-between px-4 py-3">
               <span className="text-sm text-gray-600">角色</span>
-              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${roleColor}`}>
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs font-medium ${roleColor}`}
+              >
                 {roleLabel}
               </span>
             </div>
             <div className="flex items-center justify-between px-4 py-3">
               <span className="text-sm text-gray-600">订阅</span>
-              <span className={`text-sm font-medium ${user.subscription === "vip" ? "text-amber-600" : "text-gray-500"}`}>
+              <span
+                className={`text-sm font-medium ${user.subscription === "vip" ? "text-amber-600" : "text-gray-500"}`}
+              >
                 {user.subscription === "vip" ? "VIP" : "免费"}
               </span>
             </div>
             <div className="flex items-center justify-between px-4 py-3">
               <span className="text-sm text-gray-600">API Key 状态</span>
-              <span className={`text-sm ${user.subscription === "vip" ? "text-green-600" : "text-red-500"}`}>
-                {user.subscription === "vip" ? "可使用系统模型 + 可选自备 Key" : "请配置 API Key 才能使用 AI"}
+              <span
+                className={`text-sm ${user.subscription === "vip" ? "text-green-600" : "text-red-500"}`}
+              >
+                {user.subscription === "vip"
+                  ? "可使用系统模型 + 可选自带 Key"
+                  : "请配置 API Key 才能使用 AI"}
               </span>
             </div>
           </div>
@@ -115,7 +149,9 @@ export default function SettingsPage() {
         {/* VIP Info */}
         {user.subscription === "vip" && (
           <section>
-            <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">VIP 权益</h2>
+            <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
+              VIP 权益
+            </h2>
             <div className="rounded-xl bg-amber-50 p-4 space-y-1.5">
               <div className="flex items-center gap-2 text-sm text-amber-800">
                 <span className="text-amber-500">&bull;</span> 可使用叙境模型
@@ -133,10 +169,14 @@ export default function SettingsPage() {
         {/* ADMIN Info */}
         {user.role === "ADMIN" && (
           <section>
-            <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">管理权限</h2>
+            <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
+              管理权限
+            </h2>
             <div className="rounded-xl bg-red-50 p-4">
               <div className="text-sm text-red-800">管理员权限</div>
-              <div className="mt-1 text-xs text-red-500">用户管理 &middot; 角色管理 &middot; 订单审核 &middot; VIP 管理</div>
+              <div className="mt-1 text-xs text-red-500">
+                用户管理 &middot; 角色管理 &middot; 订单审核 &middot; VIP 管理
+              </div>
             </div>
           </section>
         )}
@@ -144,10 +184,14 @@ export default function SettingsPage() {
         {/* Non-VIP reminder */}
         {user.subscription === "free" && user.role !== "ADMIN" && (
           <section>
-            <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">升级提示</h2>
+            <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
+              升级提示
+            </h2>
             <div className="rounded-xl bg-blue-50 p-4">
               <div className="text-sm text-blue-800">成为 VIP 解锁全部功能</div>
-              <div className="mt-1 text-xs text-blue-500">系统模型 &middot; 角色系统 &middot; 10000 条记忆</div>
+              <div className="mt-1 text-xs text-blue-500">
+                系统模型 &middot; 角色系统 &middot; 10000 条记忆
+              </div>
             </div>
           </section>
         )}

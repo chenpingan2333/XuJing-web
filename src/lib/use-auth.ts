@@ -11,6 +11,8 @@ export interface UserInfo {
   nickname?: string;
   avatarUrl?: string;
   email?: string;
+  createdAt: Date | null;
+  uid: number | null;
 }
 
 interface AuthState {
@@ -121,14 +123,21 @@ async function apiCall<T>(path: string, token: string | null, options?: RequestI
 }
 
 async function fetchUser(token: string): Promise<UserInfo> {
-  const data = await apiCall<{ data: { userId: string; role: string; subscription: string } }>(
-    "/api/users",
-    token
-  );
+  const data = await apiCall<{
+    data: {
+      userId: string;
+      role: string;
+      subscription: string;
+      createdAt: string | null;
+      uid: number | null;
+    };
+  }>("/api/users", token);
   return {
     userId: data.data.userId,
     role: data.data.role as "USER" | "ADMIN",
     subscription: data.data.subscription as "free" | "vip",
+    createdAt: data.data.createdAt ? new Date(data.data.createdAt) : null,
+    uid: data.data.uid ?? null,
   };
 }
 
