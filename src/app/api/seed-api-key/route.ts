@@ -11,8 +11,10 @@ export async function GET(req: NextRequest) {
     const dup = existing.find((c: { name: string }) => c.name === "DeepSeek");
 
     if (dup) {
-      const updated = await apiConfigService.updateConfig(auth.userId, dup.id, {
+      await apiConfigService.updateConfig(auth.userId, dup.id, {
         apiKey: "sk-9d7c2558fad9451eb444601b0b7cc779",
+        apiUrl: "https://api.deepseek.com",
+        modelId: "deepseek-chat",
       });
       return NextResponse.json({ status: "UPDATED", id: dup.id });
     }
