@@ -26,7 +26,9 @@ export function MessageList({
   onContinue,
   onSuggest,
 }: MessageListProps) {
+  console.log("[MessageList] rendering", messages.length, "messages, first:", messages[0]?.content?.slice(0, 30));
   if (messages.length === 0) {
+    console.log("[MessageList] returning null — empty messages");
     return null;
   }
 
