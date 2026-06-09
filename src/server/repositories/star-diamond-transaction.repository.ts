@@ -4,17 +4,12 @@ import { eq, desc } from "drizzle-orm";
 
 export class StarDiamondTransactionRepository {
   async findById(id: string) {
-    return db.query.starDiamondTransactions.findFirst({
-      where: eq(starDiamondTransactions.id, id),
-    });
+    const [r] = await db.select().from(starDiamondTransactions).where(eq(starDiamondTransactions.id, id)).limit(1);
+    return r ?? null;
   }
 
   async findByUser(userId: string, limit = 50) {
-    return db.query.starDiamondTransactions.findMany({
-      where: eq(starDiamondTransactions.userId, userId),
-      orderBy: desc(starDiamondTransactions.createdAt),
-      limit,
-    });
+    return db.select().from(starDiamondTransactions).where(eq(starDiamondTransactions.userId, userId)).orderBy(desc(starDiamondTransactions.createdAt)).limit(limit);
   }
 
   async create(data: typeof starDiamondTransactions.$inferInsert) {
@@ -26,10 +21,7 @@ export class StarDiamondTransactionRepository {
   }
 
   async getBalance(userId: string): Promise<number> {
-    const last = await db.query.starDiamondTransactions.findFirst({
-      where: eq(starDiamondTransactions.userId, userId),
-      orderBy: desc(starDiamondTransactions.createdAt),
-    });
+    const [last] = await db.select().from(starDiamondTransactions).where(eq(starDiamondTransactions.userId, userId)).orderBy(desc(starDiamondTransactions.createdAt)).limit(1);
     return last?.balanceAfter ?? 0;
   }
 }

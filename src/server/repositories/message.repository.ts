@@ -4,18 +4,12 @@ import { eq, and, desc } from "drizzle-orm";
 
 export class MessageRepository {
   async findById(id: string) {
-    return db.query.messages.findFirst({ where: eq(messages.id, id) });
+    const [r] = await db.select().from(messages).where(eq(messages.id, id)).limit(1);
+    return r ?? null;
   }
 
   async findHistory(characterId: string, userId: string, limit = 50) {
-    return db.query.messages.findMany({
-      where: and(
-        eq(messages.characterId, characterId),
-        eq(messages.userId, userId),
-      ),
-      orderBy: desc(messages.createdAt),
-      limit,
-    });
+    return db.select().from(messages).where(and(eq(messages.characterId, characterId), eq(messages.userId, userId))).orderBy(desc(messages.createdAt)).limit(limit);
   }
 
   async create(data: typeof messages.$inferInsert) {
@@ -29,14 +23,7 @@ export class MessageRepository {
 
   /** 重生成：删除该角色最近的 ASSISTANT 消息 */
   async deleteLastAssistant(characterId: string, userId: string) {
-    const last = await db.query.messages.findFirst({
-      where: and(
-        eq(messages.characterId, characterId),
-        eq(messages.userId, userId),
-        eq(messages.role, "ASSISTANT")
-      ),
-      orderBy: desc(messages.createdAt),
-    });
+    const [last] = await db.select().from(messages).where(and(eq(messages.characterId, characterId), eq(messages.userId, userId), eq(messages.role, "ASSISTANT"))).orderBy(desc(messages.createdAt)).limit(1);
     if (last) {
       await db.delete(messages).where(eq(messages.id, last.id));
     }

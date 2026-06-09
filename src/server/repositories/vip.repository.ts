@@ -4,25 +4,18 @@ import { eq, and, gte } from "drizzle-orm";
 
 export class VipRepository {
   async findById(id: string) {
-    return db.query.vipRecords.findFirst({ where: eq(vipRecords.id, id) });
+    const [r] = await db.select().from(vipRecords).where(eq(vipRecords.id, id)).limit(1);
+    return r ?? null;
   }
 
   async findActive(userId: string) {
     const now = new Date();
-    return db.query.vipRecords.findFirst({
-      where: and(
-        eq(vipRecords.userId, userId),
-        gte(vipRecords.expiresAt, now)
-      ),
-      orderBy: vipRecords.expiresAt,
-    });
+    const [r] = await db.select().from(vipRecords).where(and(eq(vipRecords.userId, userId), gte(vipRecords.expiresAt, now))).orderBy(vipRecords.expiresAt).limit(1);
+    return r ?? null;
   }
 
   async findByUser(userId: string) {
-    return db.query.vipRecords.findMany({
-      where: eq(vipRecords.userId, userId),
-      orderBy: vipRecords.createdAt,
-    });
+    return db.select().from(vipRecords).where(eq(vipRecords.userId, userId)).orderBy(vipRecords.createdAt);
   }
 
   async create(data: typeof vipRecords.$inferInsert) {

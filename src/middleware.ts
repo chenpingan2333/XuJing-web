@@ -102,10 +102,8 @@ function authError(message: string, status: number): NextResponse {
 }
 
 async function getUserOrNull(userId: string) {
-  return db.query.users.findFirst({
-    where: eq(users.id, userId),
-    columns: { id: true, role: true, status: true, vipExpiresAt: true },
-  });
+  const [u] = await db.select({ id: users.id, role: users.role, status: users.status, vipExpiresAt: users.vipExpiresAt }).from(users).where(eq(users.id, userId)).limit(1);
+  return u ?? null;
 }
 
 export const config = { matcher: ["/:path*"] };

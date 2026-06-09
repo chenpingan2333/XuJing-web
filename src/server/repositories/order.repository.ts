@@ -8,21 +8,16 @@ import { uuidv7 } from "@/db/helpers";
 
 export class OrderRepository {
   async findById(id: string) {
-    return db.query.orders.findFirst({ where: eq(orders.id, id) });
+    const [r] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
+    return r ?? null;
   }
 
   async findByUser(userId: string) {
-    return db.query.orders.findMany({
-      where: eq(orders.userId, userId),
-      orderBy: desc(orders.createdAt),
-    });
+    return db.select().from(orders).where(eq(orders.userId, userId)).orderBy(desc(orders.createdAt));
   }
 
   async findPendingReview() {
-    return db.query.orders.findMany({
-      where: eq(orders.status, "PENDING_REVIEW"),
-      orderBy: orders.createdAt,
-    });
+    return db.select().from(orders).where(eq(orders.status, "PENDING_REVIEW")).orderBy(orders.createdAt);
   }
 
   async create(data: typeof orders.$inferInsert) {
@@ -38,9 +33,7 @@ export class OrderRepository {
    */
   async approve(orderId: string, adminId: string) {
     return db.transaction(async (tx) => {
-      const order = await tx.query.orders.findFirst({
-        where: eq(orders.id, orderId),
-      });
+      const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
       if (!order || order.status !== "PENDING_REVIEW") return null;
       if (order.transactionId) return null;
 
@@ -66,16 +59,13 @@ export class OrderRepository {
         .set({ starDiamonds: sql`${users.starDiamonds} + ${newBalance}` })
         .where(eq(users.id, order.userId));
 
-      const user = await tx.query.users.findFirst({
-        where: eq(users.id, order.userId),
-        columns: { starDiamonds: true },
-      });
+      const [u] = await tx.select({ starDiamonds: users.starDiamonds }).from(users).where(eq(users.id, order.userId)).limit(1);
 
       // step 3: write fund flow
       await tx.insert(starDiamondTransactions).values({
         userId: order.userId,
         amount: BigInt(order.starDiamonds),
-        balanceAfter: BigInt(user?.starDiamonds ?? 0),
+        balanceAfter: BigInt(u?.starDiamonds ?? 0),
         type: "RECHARGE",
         referenceId: order.id,
       } as any);

@@ -4,21 +4,16 @@ import { eq, desc } from "drizzle-orm";
 
 export class AdminLogRepository {
   async findById(id: string) {
-    return db.query.adminLogs.findFirst({ where: eq(adminLogs.id, id) });
+    const [r] = await db.select().from(adminLogs).where(eq(adminLogs.id, id)).limit(1);
+    return r ?? null;
   }
 
   async findByAdmin(adminId: string, limit = 50) {
-    return db.query.adminLogs.findMany({
-      where: eq(adminLogs.adminId, adminId),
-      orderBy: desc(adminLogs.createdAt),
-      limit,
-    });
+    return db.select().from(adminLogs).where(eq(adminLogs.adminId, adminId)).orderBy(desc(adminLogs.createdAt)).limit(limit);
   }
 
   async findByRequest(requestId: string) {
-    return db.query.adminLogs.findMany({
-      where: eq(adminLogs.requestId, requestId),
-    });
+    return db.select().from(adminLogs).where(eq(adminLogs.requestId, requestId));
   }
 
   async create(data: typeof adminLogs.$inferInsert) {

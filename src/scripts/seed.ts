@@ -11,9 +11,7 @@ import bcrypt from "bcryptjs";
 
 async function seed() {
   // Idempotent guard
-  const existing = await db.query.users.findFirst({
-    where: eq(users.email, "admin@xujing.local"),
-  });
+  const [existing] = await db.select().from(users).where(eq(users.email, "admin@xujing.local")).limit(1);
   if (existing) {
     console.log("DB already seeded, skipping.");
     process.exit(0);

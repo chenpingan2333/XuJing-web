@@ -4,22 +4,17 @@ import { eq, and } from "drizzle-orm";
 
 export class ApiConfigRepository {
   async findById(id: string) {
-    return db.query.apiConfigs.findFirst({ where: eq(apiConfigs.id, id) });
+    const [r] = await db.select().from(apiConfigs).where(eq(apiConfigs.id, id)).limit(1);
+    return r ?? null;
   }
 
   async findByUser(userId: string) {
-    return db.query.apiConfigs.findMany({
-      where: eq(apiConfigs.userId, userId),
-    });
+    return db.select().from(apiConfigs).where(eq(apiConfigs.userId, userId));
   }
 
   async findDefault(userId: string) {
-    return db.query.apiConfigs.findFirst({
-      where: and(
-        eq(apiConfigs.userId, userId),
-        eq(apiConfigs.isDefault, true)
-      ),
-    });
+    const [r] = await db.select().from(apiConfigs).where(and(eq(apiConfigs.userId, userId), eq(apiConfigs.isDefault, true))).limit(1);
+    return r ?? null;
   }
 
   async create(data: typeof apiConfigs.$inferInsert) {

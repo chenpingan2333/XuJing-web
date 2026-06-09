@@ -4,22 +4,16 @@ import { eq, and, isNull, sql } from "drizzle-orm";
 
 export class CharacterRepository {
   async findById(id: string) {
-    return db.query.characters.findFirst({ where: eq(characters.id, id) });
+    const [r] = await db.select().from(characters).where(eq(characters.id, id)).limit(1);
+    return r ?? null;
   }
 
   async findOfficial() {
-    return db.query.characters.findMany({
-      where: and(eq(characters.isOfficial, true), isNull(characters.userId)),
-    });
+    return db.select().from(characters).where(and(eq(characters.isOfficial, true), isNull(characters.userId)));
   }
 
   async findUserCharacters(userId: string) {
-    return db.query.characters.findMany({
-      where: and(
-        eq(characters.userId, userId),
-        isNull(characters.deletedAt)
-      ),
-    });
+    return db.select().from(characters).where(and(eq(characters.userId, userId), isNull(characters.deletedAt)));
   }
 
   async countUserCharacters(userId: string) {
