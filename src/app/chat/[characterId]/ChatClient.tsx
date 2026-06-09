@@ -421,8 +421,29 @@ export function ChatClient({ characterId }: { characterId: string }) {
           name={character.name ?? ""}
           avatarUrl={character.avatarUrl ?? null}
           memoryUsed={memory.used}
-          memoryLimit={memory.limit}
+          onMenuClick={() => setMenuOpen((p) => !p)}
         />
+      )}
+
+      {/* ── Management Menu Dropdown ── */}
+      {menuOpen && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
+          <div className="absolute right-4 top-14 z-40 w-44 rounded-xl border border-stone-200 bg-white shadow-lg py-1.5">
+            <button onClick={() => { setMenuOpen(false); setActiveModal("restart"); }} className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 transition-colors flex items-center gap-2.5">
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M2.5 7.5a5 5 0 019.3-2.5M12.5 7.5a5 5 0 01-9.3 2.5"/><path d="M2.5 3.5v4h4M12.5 11.5v-4h-4"/></svg>
+              重启
+            </button>
+            <button onClick={() => { setMenuOpen(false); setActiveModal("stats"); }} className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 transition-colors flex items-center gap-2.5">
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="1.5" y="10" width="3" height="3.5" rx="0.5"/><rect x="6" y="6.5" width="3" height="7" rx="0.5"/><rect x="10.5" y="3" width="3" height="10.5" rx="0.5"/></svg>
+              统计
+            </button>
+            <button onClick={() => { setMenuOpen(false); setActiveModal("export"); }} className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 transition-colors flex items-center gap-2.5">
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M7.5 1.5v9M4.5 7l3 3.5 3-3.5"/><path d="M2.5 12v1a1 1 0 001 1h8a1 1 0 001-1v-1"/></svg>
+              导出
+            </button>
+          </div>
+        </>
       )}
 
       {/* Opening Ceremony */}
