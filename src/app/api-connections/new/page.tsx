@@ -1,63 +1,68 @@
 "use client";
 
 import { useAuth } from "@/lib/use-auth";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-const PLATFORM_DEFAULTS: Record<string, { url: string; modelHint: string }> = {
-  OPENAI: { url: "https://api.openai.com", modelHint: "gpt-4.1" },
-  ANTHROPIC: { url: "https://api.anthropic.com", modelHint: "claude-sonnet-4-20250514" },
-  GEMINI: { url: "https://generativelanguage.googleapis.com", modelHint: "gemini-2.5-pro" },
-  DEEPSEEK: { url: "https://api.deepseek.com", modelHint: "deepseek-chat" },
-  GROK: { url: "https://api.x.ai", modelHint: "grok-4" },
-  CUSTOM_OPENAI: { url: "", modelHint: "" },
-  CUSTOM_ANTHROPIC: { url: "", modelHint: "" },
-  CUSTOM_GEMINI: { url: "", modelHint: "" },
+const PLATFORM_PRESETS: Record<string, { label: string; url: string; modelHint: string; isCustom: boolean }> = {
+  OPENAI:           { label: "GPT (OpenAI)",         url: "https://api.openai.com",                      modelHint: "gpt-4.1",                isCustom: false },
+  ANTHROPIC:        { label: "Claude (Anthropic)",   url: "https://api.anthropic.com",                   modelHint: "claude-sonnet-4-20250514", isCustom: false },
+  GEMINI:           { label: "Gemini (Google)",      url: "https://generativelanguage.googleapis.com",    modelHint: "gemini-2.5-pro",         isCustom: false },
+  DEEPSEEK:         { label: "DeepSeek",             url: "https://api.deepseek.com",                     modelHint: "deepseek-chat",          isCustom: false },
+  GROK:             { label: "Grok (xAI)",           url: "https://api.x.ai",                             modelHint: "grok-4",                 isCustom: false },
+  CUSTOM_OPENAI:    { label: "自定义 (OpenAI 兼容)",  url: "",                                            modelHint: "",                        isCustom: true },
+  CUSTOM_ANTHROPIC: { label: "自定义 (Anthropic 兼容)", url: "",                                          modelHint: "",                        isCustom: true },
+  CUSTOM_GEMINI:    { label: "自定义 (Gemini 兼容)",  url: "",                                            modelHint: "",                        isCustom: true },
 };
 
-const PLATFORM_OPTIONS = [
-  { value: "OPENAI", label: "OpenAI" },
-  { value: "ANTHROPIC", label: "Claude (Anthropic)" },
-  { value: "GEMINI", label: "Gemini (Google)" },
-  { value: "DEEPSEEK", label: "DeepSeek" },
-  { value: "GROK", label: "Grok (xAI)" },
-  { value: "CUSTOM_OPENAI", label: "自定义 (OpenAI 兼容)" },
-  { value: "CUSTOM_ANTHROPIC", label: "自定义 (Anthropic 兼容)" },
-  { value: "CUSTOM_GEMINI", label: "自定义 (Gemini 兼容)" },
-];
+const PLATFORM_OPTIONS = Object.entries(PLATFORM_PRESETS).map(([value, info]) => ({
+  value,
+  label: info.label,
+  isCustom: info.isCustom,
+}));
+
+const PRESET_OPTIONS = PLATFORM_OPTIONS.filter(o => !o.isCustom);
+const CUSTOM_OPTIONS = PLATFORM_OPTIONS.filter(o => o.isCustom);
 
 export default function NewApiConnectionPage() {
-  const { user, token } = useAuth();
-  const [platform, setPlatform] = useState("OPENAI");
+  // ═══════════════════ HOOKS ZONE ═══════════════════
+  const { user, loading: authLoading, token } = useAuth();
+  const router = useRouter();
+
+  const [platform, setPlatform] = useState("DEEPSEEK");
   const [name, setName] = useState("");
-  const [apiUrl, setApiUrl] = useState("https://api.openai.com");
+  const [apiUrl, setApiUrl] = useState(PLATFORM_PRESETS.DEEPSEEK.url);
   const [apiKey, setApiKey] = useState("");
   const [modelId, setModelId] = useState("");
-  const [isDefault, setIsDefault] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [testResult, setTestResult] = useState<{ ok?: boolean; error?: string } | null>(null);
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  if (!user) {
-    return (
-      <div className="flex h-dvh flex-col items-center justify-center gap-3">
-        <div className="text-sm text-gray-500">请先登录</div>
-        <button onClick={() => { window.location.href = "/me"; }} className="text-sm text-gray-900 underline">前往登录</button>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!authLoading && !user) router.replace("/login");
+  }, [authLoading, user, router]);
+
+  const preset = PLATFORM_PRESETS[platform];
+  const isCustomPlatform = preset?.isCustom ?? false;
 
   const handlePlatformChange = (value: string) => {
     setPlatform(value);
-    const def = PLATFORM_DEFAULTS[value];
-    setApiUrl(def?.url || "");
-    if (!modelId && def?.modelHint) setModelId(def.modelHint);
+    const def = PLATFORM_PRESETS[value];
+    if (def) {
+      setApiUrl(def.url);
+      if (!modelId && def.modelHint) setModelId(def.modelHint);
+    }
+  };
+
+  const showToast = (type: "success" | "error", message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 2500);
   };
 
   const handleSubmit = async () => {
     setError("");
-    setTestResult(null);
 
-    if (!name.trim()) { setError("请输入名称"); return; }
+    if (!name.trim()) { setError("请输入配置名称"); return; }
     if (!apiUrl.trim()) { setError("请输入 API 地址"); return; }
     if (!apiKey || apiKey.length < 8) { setError("API Key 至少 8 个字符"); return; }
     if (!modelId.trim()) { setError("请输入模型 ID"); return; }
@@ -66,108 +71,196 @@ export default function NewApiConnectionPage() {
     try {
       const res = await fetch("/api/api-configs", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-        body: JSON.stringify({ name: name.trim(), platform, apiUrl, apiKey, modelId, isDefault }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token,
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          platform,
+          apiUrl: apiUrl.trim(),
+          apiKey: apiKey.trim(),
+          modelId: modelId.trim(),
+          isDefault: true,
+        }),
       });
       const data = await res.json();
-      if (!data.success) { setError(data.error || "创建失败"); setSubmitting(false); return; }
-
-      const newId = data.data.id;
-      // Test connection
-      try {
-        const testRes = await fetch("/api/api-configs/" + newId + "/test", {
-          method: "POST",
-          headers: { Authorization: "Bearer " + token },
-        });
-        const testData = await testRes.json();
-        setTestResult(testData.data || testData);
-      } catch {
-        setTestResult({ ok: false, error: "测试请求失败" });
+      if (data.success) {
+        showToast("success", "创建成功");
+        setTimeout(() => router.push("/api-connections"), 800);
+      } else {
+        setError(data.error || "创建失败");
       }
-
-      setSubmitting(false);
     } catch {
-      setError("网络错误");
-      setSubmitting(false);
+      setError("网络错误，请重试");
     }
+    setSubmitting(false);
   };
 
+  // ═══════════════════ RENDER ZONE ═══════════════════
+
+  if (authLoading) {
+    return (
+      <div className="flex h-dvh items-center justify-center bg-stone-50">
+        <span className="text-sm text-stone-300">加载中…</span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex h-dvh items-center justify-center bg-stone-50">
+        <span className="text-sm text-stone-300">跳转中…</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-dvh flex-col">
-      <div className="flex items-center gap-3 px-5 pt-12 pb-4">
-        <button onClick={() => { window.location.href = "/api-connections"; }} className="text-gray-400 text-lg">&larr;</button>
-        <h1 className="text-lg font-semibold text-gray-900">添加 Provider</h1>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-5 pb-8 space-y-4">
-        {/* Platform */}
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">Provider 类型</label>
-          <select value={platform} onChange={(e) => handlePlatformChange(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-gray-400">
-            {PLATFORM_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </div>
-
-        {/* Name */}
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">名称</label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-            placeholder="例如: 我的 OpenAI" maxLength={50}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-gray-400" />
-        </div>
-
-        {/* API URL */}
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">API 地址</label>
-          <input type="url" value={apiUrl} onChange={(e) => setApiUrl(e.target.value)}
-            placeholder="https://api.openai.com"
-            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-gray-400" />
-        </div>
-
-        {/* API Key */}
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">API Key</label>
-          <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
-            placeholder="sk-..." minLength={8}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-gray-400" />
-          <div className="mt-0.5 text-xs text-gray-400">密钥加密存储，不会明文保存</div>
-        </div>
-
-        {/* Model ID */}
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">模型 ID</label>
-          <input type="text" value={modelId} onChange={(e) => setModelId(e.target.value)}
-            placeholder={PLATFORM_DEFAULTS[platform]?.modelHint || "model-id"} maxLength={100}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-gray-400" />
-        </div>
-
-        {/* Default toggle */}
-        <label className="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3 cursor-pointer">
-          <span className="text-sm text-gray-700">设为默认 Provider</span>
-          <button onClick={() => setIsDefault(!isDefault)}
-            className={`relative h-6 w-11 rounded-full transition-colors ${isDefault ? "bg-green-500" : "bg-gray-300"}`}>
-            <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${isDefault ? "translate-x-5" : ""}`} />
-          </button>
-        </label>
-
-        {/* Error */}
-        {error && <div className="rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</div>}
-
-        {/* Test result */}
-        {testResult && (
-          <div className={`rounded-lg px-4 py-3 ${testResult.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
-            <div className="text-sm font-medium">{testResult.ok ? "&#10004; 连接成功" : "&#10008; 连接失败"}</div>
-            {testResult.error && <div className="mt-0.5 text-xs opacity-80">{testResult.error}</div>}
-          </div>
-        )}
-
-        {/* Submit */}
-        <button onClick={handleSubmit} disabled={submitting}
-          className="w-full rounded-lg bg-gray-900 py-3 text-sm font-medium text-white disabled:opacity-50">
-          {submitting ? "保存中..." : "保存并测试"}
+    <div className="flex h-dvh flex-col bg-stone-50">
+      {/* Header */}
+      <header className="shrink-0 flex items-center gap-4 px-5 pt-12 pb-4">
+        <button
+          onClick={() => router.push("/api-connections")}
+          className="flex h-8 w-8 items-center justify-center rounded-full text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600"
+        >
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11 4L6 9l5 5" />
+          </svg>
         </button>
+        <h1 className="text-lg font-semibold tracking-tight text-neutral-900">新建配置</h1>
+      </header>
+
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto px-5 pb-12">
+        <div className="space-y-5">
+          {/* Name */}
+          <div>
+            <label className="block mb-1.5 text-xs font-medium text-stone-500">
+              名称
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="例如：我的 DeepSeek"
+              maxLength={50}
+              className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-neutral-800 placeholder-stone-300 outline-none transition-colors focus:border-stone-400"
+            />
+          </div>
+
+          {/* Platform */}
+          <div>
+            <label className="block mb-1.5 text-xs font-medium text-stone-500">
+              模型平台
+            </label>
+            <select
+              value={platform}
+              onChange={(e) => handlePlatformChange(e.target.value)}
+              className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-neutral-800 outline-none transition-colors focus:border-stone-400"
+            >
+              <optgroup label="预设平台">
+                {PRESET_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </optgroup>
+              <optgroup label="自定义协议">
+                {CUSTOM_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </optgroup>
+            </select>
+          </div>
+
+          {/* API URL */}
+          <div>
+            <label className="block mb-1.5 text-xs font-medium text-stone-500">
+              API 接口地址 {isCustomPlatform ? "" : <span className="text-stone-300">· 自动填充</span>}
+            </label>
+            {isCustomPlatform ? (
+              <input
+                type="url"
+                value={apiUrl}
+                onChange={(e) => setApiUrl(e.target.value)}
+                placeholder="https://your-api-endpoint.com"
+                className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-neutral-800 placeholder-stone-300 outline-none transition-colors focus:border-stone-400"
+              />
+            ) : (
+              <div className="flex items-center rounded-lg border border-stone-100 bg-stone-50 px-3 py-2.5">
+                <span className="text-sm text-stone-500">{apiUrl}</span>
+                <span className="ml-auto rounded bg-stone-200 px-1.5 py-0.5 text-[10px] text-stone-400">已锁定</span>
+              </div>
+            )}
+          </div>
+
+          {/* API Key */}
+          <div>
+            <label className="block mb-1.5 text-xs font-medium text-stone-500">
+              API 密钥
+            </label>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="sk-..."
+              className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-neutral-800 placeholder-stone-300 outline-none transition-colors focus:border-stone-400"
+            />
+            <p className="mt-1 text-[11px] text-stone-300">
+              密钥加密存储，仅你可见
+            </p>
+          </div>
+
+          {/* Model ID */}
+          <div>
+            <label className="block mb-1.5 text-xs font-medium text-stone-500">
+              模型 ID
+            </label>
+            <input
+              type="text"
+              value={modelId}
+              onChange={(e) => setModelId(e.target.value)}
+              placeholder={PLATFORM_PRESETS[platform]?.modelHint || "输入模型 ID"}
+              maxLength={100}
+              className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-neutral-800 placeholder-stone-300 outline-none transition-colors focus:border-stone-400"
+            />
+            {PLATFORM_PRESETS[platform]?.modelHint && (
+              <p className="mt-1 text-[11px] text-stone-300">
+                建议：{PLATFORM_PRESETS[platform].modelHint}
+              </p>
+            )}
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div className="rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-600">
+              {error}
+            </div>
+          )}
+
+          {/* Submit */}
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="w-full rounded-lg bg-neutral-900 py-2.5 text-sm font-medium text-stone-50 transition-all duration-200 hover:bg-neutral-800 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {submitting ? "保存中…" : "保存配置"}
+          </button>
+        </div>
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50">
+          <div
+            className={`rounded-full px-5 py-2.5 text-xs font-medium shadow-lg transition-all duration-300 ${
+              toast.type === "success"
+                ? "bg-neutral-900 text-stone-50"
+                : "bg-red-50 text-red-600 border border-red-100"
+            }`}
+          >
+            {toast.message}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
