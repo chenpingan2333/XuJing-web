@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useAuth } from "@/lib/use-auth";
-import { useState, useEffect, useCallback, useRef, type DragEvent } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
 
 // ─── Constants ────────────────────────────────────────────────
@@ -131,17 +131,12 @@ export default function NewCharacterPage() {
     name, greeting, setting, personality, scenario,
     dialogueExamples, nickname, groupGreeting, mainPrompt, postHistoryInstructions,
   });
-  formRef.current = {
-    name, greeting, setting, personality, scenario,
-    dialogueExamples, nickname, groupGreeting, mainPrompt, postHistoryInstructions,
-  };
 
   // ── Auth guard (useEffect, not conditional return) ──
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
 
-  const canSave = name.trim().length > 0 && setting.trim().length > 0 && greeting.trim().length > 0;
 
   // ── Avatar handler (stable, empty deps) ──
   const handleAvatarSelect = useCallback((file: File) => {
@@ -217,9 +212,30 @@ export default function NewCharacterPage() {
 
     setError("仅支持 .json 角色卡或 jpg/png/webp 头像");
   }, [handleAvatarSelect]); // Only depends on the stable handleAvatarSelect
+  // ── Derived values (hooks) ──
+  const canSave = useMemo(
+    () => name.trim().length > 0 && setting.trim().length > 0 && greeting.trim().length > 0,
+    [name, setting, greeting]
+  );
+
+  // ── Sync form ref (non-hook, runs every render) ──
+  formRef.current = {
+    name, greeting, setting, personality, scenario,
+    dialogueExamples, nickname, groupGreeting, mainPrompt, postHistoryInstructions,
+  };
+
+  // ── Save ref (used inside stable handleSave callback) ──
+  const saveRef = useRef({ canSave, token, avatarFile,
+    name, greeting, setting, personality, scenario,
+    dialogueExamples, nickname, groupGreeting, mainPrompt, postHistoryInstructions,
+  });
+  saveRef.current = { canSave, token, avatarFile,
+    name, greeting, setting, personality, scenario,
+    dialogueExamples, nickname, groupGreeting, mainPrompt, postHistoryInstructions,
+  };
 
   // ── Save ──
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!canSave) return;
     setSaving(true);
     setError("");
@@ -265,7 +281,7 @@ export default function NewCharacterPage() {
       router.push("/characters");
     } catch { setError("网络异常，请检查连接后重试"); }
     finally { setSaving(false); }
-  };
+  }, [router]); // stable: router is stable from useRouter
 
   // ── Loading state ──
   if (loading || !user) {
