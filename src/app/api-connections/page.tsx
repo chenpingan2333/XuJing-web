@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useAuth } from "@/lib/use-auth";
 import { useState, useEffect, useCallback } from "react";
@@ -45,6 +45,21 @@ export default function ApiConnectionsPage() {
     if (!authLoading && !user) router.replace("/login");
   }, [authLoading, user, router]);
 
+  const usePlatform = useCallback(async () => {
+    if (!token) return;
+    setActivating("__platform__");
+    try {
+      const res = await fetch("/api/api-configs/use-platform", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+      });
+      if (res.ok) {
+        setConfigs(prev => prev.map(c => ({ ...c, isActive: false })));
+      }
+    } catch { /* ignore */ }
+    setActivating(null);
+  }, [token]);
+
   const setActive = useCallback(async (id: string) => {
     if (!token) return;
     setActivating(id);
@@ -84,7 +99,7 @@ export default function ApiConnectionsPage() {
   // ═══════════════════ DERIVED ═══════════════════
   const isVip = user?.subscription === "vip";
   const hasConfigs = configs.length > 0;
-  const activeConfig = configs.find(c => c.isActive);
+  const platformActive = !configs.some(c => c.isActive);
 
   // ═══════════════════ EARLY RETURNS ═══════════════════
   if (authLoading || fetching) {
@@ -130,31 +145,50 @@ export default function ApiConnectionsPage() {
       </header>
 
       <div className="flex-1 overflow-y-auto px-5 pb-12">
-        {/* VIP status */}
-        {isVip && (
-          <section className="mb-8">
-            <h2 className="mb-3 text-[11px] font-medium uppercase tracking-wider text-stone-400">当前通道</h2>
-            <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-5 py-4">
-              <div className="flex items-center gap-3">
-                <span className="text-amber-500 text-lg">&#9733;</span>
-                <div>
-                  <div className="text-sm font-medium text-amber-900">叙境专属模型</div>
-                  <div className="mt-0.5 text-xs text-amber-600">
-                    VIP已接入叙境专属对话大模型，可在api key设置里自主选择
+        {/* Section: 模型通道 */}
+        <section className="mb-8">
+          <h2 className="mb-3 text-[11px] font-medium uppercase tracking-wider text-stone-400">
+            {isVip ? "选择模型通道" : "自定义配置"}
+          </h2>
+
+          {/* VIP: platform model card */}
+          {isVip && (
+            <div className="mb-2.5">
+              <div
+                className={`rounded-xl border px-4 py-3.5 transition-colors ${
+                  platformActive
+                    ? "border-stone-300 bg-stone-50 ring-1 ring-stone-200"
+                    : "border-stone-100 bg-white hover:border-stone-200 hover:bg-stone-50/50"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-amber-500 text-lg shrink-0">&#9733;</span>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-neutral-800 truncate">叙境专属模型</div>
+                      <div className="mt-0.5 text-[11px] text-stone-400">VIP 专属通道</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                    {platformActive ? (
+                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700">使用中</span>
+                    ) : (
+                      <button
+                        onClick={usePlatform}
+                        disabled={activating === "__platform__"}
+                        className="rounded-full border border-stone-200 bg-white px-2 py-0.5 text-[10px] font-medium text-stone-500 hover:border-stone-300 hover:text-stone-700 transition-colors disabled:opacity-50"
+                      >
+                        {activating === "__platform__" ? "…" : "启用"}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
-          </section>
-        )}
+          )}
 
-        {/* Config list */}
-        <section>
-          <h2 className="mb-3 text-[11px] font-medium uppercase tracking-wider text-stone-400">
-            {isVip ? "我的 API 密钥" : "自定义配置"}
-          </h2>
-
-          {!hasConfigs ? (
+          {/* Non-VIP empty */}
+          {!isVip && !hasConfigs && (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-stone-100">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#a8a29e" strokeWidth="1.5" strokeLinecap="round">
@@ -166,8 +200,14 @@ export default function ApiConnectionsPage() {
               <p className="text-sm text-stone-400">尚未配置 API</p>
               <p className="mt-1 text-[11px] text-stone-300">点击右上角「新建」添加你的模型配置</p>
             </div>
-          ) : (
+          )}
+
+          {/* Self configs */}
+          {hasConfigs && (
             <div className="space-y-2.5">
+              {isVip && (
+                <p className="text-[10px] text-stone-300 mb-1">自备 API 密钥</p>
+              )}
               {configs.map((c) => (
                 <div
                   key={c.id}

@@ -1,4 +1,4 @@
-﻿import { db } from "@/db";
+import { db } from "@/db";
 import { apiConfigs } from "@/db/schema/api-configs";
 import { eq, and } from "drizzle-orm";
 
@@ -84,6 +84,12 @@ export class ApiConfigRepository {
 
       return result;
     });
+  }
+  /**
+   * 停用当前用户全部自配 API Key——切回平台专属模型。
+   */
+  async deactivateAll(userId: string) {
+    await db.update(apiConfigs).set({ isActive: false }).where(eq(apiConfigs.userId, userId));
   }
 
   async delete(id: string) {
