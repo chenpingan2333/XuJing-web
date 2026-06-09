@@ -1,18 +1,16 @@
-/**
- * ProviderGateway — 统一 AI Provider 路由层
- *
- * 职责:
- *  1. 根据 ApiConfig.platform 路由到对应 Provider
- *  2. 内部解密 api_key_encrypted
- *  3. 统一返回 AsyncGenerator<ChatEvent> 流
- *  4. 无 SDK 依赖，全部使用原生 fetch
+﻿/**
+ * ProviderGateway 鈥?缁熶竴 AI Provider 璺敱灞? *
+ * 鑱岃矗:
+ *  1. 鏍规嵁 ApiConfig.platform 璺敱鍒板搴?Provider
+ *  2. 鍐呴儴瑙ｅ瘑 api_key_encrypted
+ *  3. 缁熶竴杩斿洖 AsyncGenerator<ChatEvent> 娴? *  4. 鏃?SDK 渚濊禆锛屽叏閮ㄤ娇鐢ㄥ師鐢?fetch
  */
 
 import { getEnv } from "@/lib/env";
 import type { ApiConfig } from "@/db/schema/api-configs";
 import { decryptApiKey } from "./crypto";
 
-// ─── Types ───────────────────────────────────────────
+// 鈹€鈹€鈹€ Types 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
@@ -23,17 +21,17 @@ export type ChatEvent =
   | { type: "done" }
   | { type: "error"; message: string };
 
-// ─── Gateway ─────────────────────────────────────────
+// 鈹€鈹€鈹€ Gateway 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 export class ProviderGateway {
   /**
-   * 流式聊天 — 统一入口
+   * 娴佸紡鑱婂ぉ 鈥?缁熶竴鍏ュ彛
    */
   async *chat(
     config: ApiConfig,
     messages: ChatMessage[],
     systemPrompt: string
   ): AsyncGenerator<ChatEvent> {
-    const apiKey = decryptApiKey(config.apiKeyEncrypted);
+    const apiKey = await decryptApiKey(config.apiKeyEncrypted);
 
     const allMessages: ChatMessage[] = [
       { role: "system", content: systemPrompt },
@@ -65,12 +63,9 @@ export class ProviderGateway {
   }
 
   /**
-   * VIP 平台模型 — DeepSeek V4 Flash 专属路由
+   * VIP 骞冲彴妯″瀷 鈥?DeepSeek V4 Flash 涓撳睘璺敱
    *
-   * 仅服务端调用。API Key 完全来自环境变量 PLATFORM_API_KEY，
-   * 不经过数据库加密层，不经过任何中间件传递，永不暴露给前端。
-   * 前端统一显示为"VIP专属模型"，不暴露实际模型名称。
-   */
+   * 浠呮湇鍔＄璋冪敤銆侫PI Key 瀹屽叏鏉ヨ嚜鐜鍙橀噺 PLATFORM_API_KEY锛?   * 涓嶇粡杩囨暟鎹簱鍔犲瘑灞傦紝涓嶇粡杩囦换浣曚腑闂翠欢浼犻€掞紝姘镐笉鏆撮湶缁欏墠绔€?   * 鍓嶇缁熶竴鏄剧ず涓?VIP涓撳睘妯″瀷"锛屼笉鏆撮湶瀹為檯妯″瀷鍚嶇О銆?   */
   async *vipPlatformChat(
     messages: ChatMessage[],
     systemPrompt: string
@@ -81,7 +76,7 @@ export class ProviderGateway {
     const modelId = env.PLATFORM_MODEL_ID;
 
     if (!apiKey) {
-      yield { type: "error", message: "平台模型暂不可用，请稍后重试" };
+      yield { type: "error", message: "骞冲彴妯″瀷鏆備笉鍙敤锛岃绋嶅悗閲嶈瘯" };
       return;
     }
 
@@ -94,11 +89,10 @@ export class ProviderGateway {
   }
 
   /**
-   * 测试连接 — 发送最小请求
-   */
+   * 娴嬭瘯杩炴帴 鈥?鍙戦€佹渶灏忚姹?   */
   async testConnection(config: ApiConfig): Promise<{ ok: boolean; error?: string }> {
     try {
-      const apiKey = decryptApiKey(config.apiKeyEncrypted);
+      const apiKey = await decryptApiKey(config.apiKeyEncrypted);
       const testMessages: ChatMessage[] = [
         { role: "user", content: "Hi" },
       ];
@@ -147,8 +141,7 @@ export class ProviderGateway {
   }
 
   /**
-   * 非流式聊天 — 用于后台任务（记忆提取等），返回完整响应文本。
-   */
+   * 闈炴祦寮忚亰澶?鈥?鐢ㄤ簬鍚庡彴浠诲姟锛堣蹇嗘彁鍙栫瓑锛夛紝杩斿洖瀹屾暣鍝嶅簲鏂囨湰銆?   */
   async chatNonStreaming(
     config: { apiUrl: string; apiKey: string; platform: string; modelId: string },
     messages: ChatMessage[],
@@ -196,7 +189,7 @@ export class ProviderGateway {
     }
   }
 
-  // ─── OpenAI-Compatible (OpenAI / DeepSeek / Grok / Custom) ───
+  // 鈹€鈹€鈹€ OpenAI-Compatible (OpenAI / DeepSeek / Grok / Custom) 鈹€鈹€鈹€
   private async *_openaiCompatible(
     baseUrl: string,
     apiKey: string,
@@ -267,7 +260,7 @@ export class ProviderGateway {
     yield { type: "done" };
   }
 
-  // ─── Anthropic ──────────────────────────────────────
+  // 鈹€鈹€鈹€ Anthropic 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
   private async *_anthropic(
     baseUrl: string,
     apiKey: string,
@@ -350,7 +343,7 @@ export class ProviderGateway {
     yield { type: "done" };
   }
 
-  // ─── Gemini ──────────────────────────────────────────
+  // 鈹€鈹€鈹€ Gemini 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
   private async *_gemini(
     baseUrl: string,
     apiKey: string,

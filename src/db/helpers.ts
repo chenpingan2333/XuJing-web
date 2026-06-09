@@ -1,12 +1,7 @@
-import { randomBytes } from "crypto";
-
-/** Generate RFC 9562 compliant UUID v7 */
+﻿/** Generate RFC 9562 compliant UUID v7 using Web Crypto API.
+ *  Fully portable across Node.js, Edge, and browser runtimes. */
 export function uuidv7(): string {
   const bytes = new Uint8Array(16);
-
-  // Random portion
-  const rand = randomBytes(10);
-  bytes.set(rand, 6);
 
   // 48-bit timestamp, big-endian bytes 0-5
   const ts = BigInt(Date.now());
@@ -16,6 +11,11 @@ export function uuidv7(): string {
   bytes[3] = Number((ts >> 16n) & 0xffn);
   bytes[4] = Number((ts >> 8n) & 0xffn);
   bytes[5] = Number(ts & 0xffn);
+
+  // Random portion for bytes 6-15
+  const rand = new Uint8Array(10);
+  globalThis.crypto.getRandomValues(rand);
+  bytes.set(rand, 6);
 
   // Version 7: bytes[6] = 0b0111xxxx
   bytes[6] = (bytes[6]! & 0x0f) | 0x70;

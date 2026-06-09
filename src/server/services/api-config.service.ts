@@ -1,7 +1,7 @@
-/**
- * ApiConfigService — API 配置管理
+﻿/**
+ * ApiConfigService — API configuration management
  *
- * AES 加密在 Service 层完成，Repository 不接触明文密钥。
+ * AES encryption completed at Service layer; Repository never touches plaintext keys.
  */
 
 import { apiConfigRepository } from "../repositories/api-config.repository";
@@ -11,10 +11,9 @@ import { encryptApiKey } from "./crypto";
 export class ApiConfigService {
   async listConfigs(userId: string) {
     const configs = await apiConfigRepository.findByUser(userId);
-    // 返回时脱敏 api_key
     return configs.map((c) => ({
       ...c,
-      apiKeyEncrypted: "••••••••",
+      apiKeyEncrypted: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
     }));
   }
 
@@ -26,7 +25,7 @@ export class ApiConfigService {
     modelId: string;
     isDefault?: boolean;
   }) {
-    const encrypted = encryptApiKey(data.apiKey);
+    const encrypted = await encryptApiKey(data.apiKey);
     return apiConfigRepository.create({
       userId,
       name: data.name,
@@ -49,7 +48,7 @@ export class ApiConfigService {
     if (data.apiUrl) updateData.apiUrl = data.apiUrl;
     if (data.modelId) updateData.modelId = data.modelId;
     if (data.apiKey) {
-      updateData.apiKeyEncrypted = encryptApiKey(data.apiKey);
+      updateData.apiKeyEncrypted = await encryptApiKey(data.apiKey);
     }
     return apiConfigRepository.update(configId, updateData as any);
   }

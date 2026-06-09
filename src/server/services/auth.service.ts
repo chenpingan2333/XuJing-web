@@ -23,8 +23,7 @@ import {
 import { Resend } from "resend";
 import { userRepository } from "../repositories/user.repository";
 import { characterRepository } from "../repositories/character.repository";
-import fs from "fs";
-import path from "path";
+import officialCharacters from "../data/official-characters.json";
 import { getEnv } from "@/lib/env";
 
 const BCRYPT_ROUNDS = 12;
@@ -287,29 +286,9 @@ async function hashToken(token: string): Promise<string> {
  * 异步执行，不阻塞注册响应。
  */
 async function injectOfficialCharacters(userId: string): Promise<void> {
-  const dataPath = path.join(process.cwd(), "src", "server", "data", "official-characters.json");
-  const raw = fs.readFileSync(dataPath, "utf-8");
-  const templates: Array<{
-    name: string;
-    setting: string;
-    greeting: string;
-    avatar?: string;
-    advanced_definitions?: {
-      personality?: string;
-      scenario?: string;
-      dialogueExamples?: string;
-    };
-    extended_fields?: {
-      nickname?: string;
-      groupGreeting?: string;
-    };
-    system_instructions?: {
-      mainPrompt?: string;
-      postHistoryInstructions?: string;
-    };
-  }> = JSON.parse(raw);
+  const templates = officialCharacters;
 
-  for (const t of templates) {
+for (const t of templates) {
     await characterRepository.create({
       userId,
       name: t.name,
