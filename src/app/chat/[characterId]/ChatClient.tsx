@@ -349,7 +349,7 @@ export function ChatClient({ characterId }: { characterId: string }) {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="输入邮箱登录"
+            placeholder="输入消息..."
             className="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm text-neutral-900 placeholder:text-stone-300 outline-none focus:border-stone-400"
           />
           <button

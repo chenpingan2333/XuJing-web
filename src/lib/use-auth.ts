@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback } from "react";
 
-// ─── Types ──────────────────────────────────────────────────────────────
+// ─── Types ───
 
 export interface UserInfo {
   userId: string;
@@ -19,28 +19,94 @@ interface AuthState {
   loading: boolean;
 }
 
-// ─── localStorage keys ──────────────────────────────────────────────────
+// ─── localStorage keys ───
 
 const TOKEN_KEY = "xujing_token";
+const REFRESH_KEY = "xujing_refresh";
+const USER_ID_KEY = "xujing_uid";
 
 function getStoredToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem(TOKEN_KEY);
 }
 
-function setStoredToken(token: string | null) {
-  if (typeof window === "undefined") return;
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
+function getStoredRefresh(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(REFRESH_KEY);
 }
 
-// ─── API helpers ────────────────────────────────────────────────────────
+function getStoredUserId(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(USER_ID_KEY);
+}
+
+function persistAuth(token: string, refreshToken: string, userId: string) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(REFRESH_KEY, refreshToken);
+  localStorage.setItem(USER_ID_KEY, userId);
+}
+
+function clearAuth() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_KEY);
+  localStorage.removeItem(USER_ID_KEY);
+}
+
+// ─── Silent refresh ───
+
+let refreshPromise: Promise<string | null> | null = null;
+
+async function tryRefreshToken(): Promise<string | null> {
+  // Deduplicate concurrent refresh attempts
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const refreshToken = getStoredRefresh();
+    const userId = getStoredUserId();
+    if (!refreshToken || !userId) return null;
+
+    try {
+      const res = await fetch("/api/auth/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, refreshToken }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (!data.success) return null;
+      const { accessToken, refreshToken: newRefresh } = data.data;
+      persistAuth(accessToken, newRefresh || refreshToken, userId);
+      return accessToken;
+    } catch {
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+// ─── API helper with auto-refresh ───
 
 async function apiCall<T>(path: string, token: string | null, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = "Bearer " + token;
-  const res = await fetch(path, { ...options, headers });
+
+  let res = await fetch(path, { ...options, headers });
   const ct = res.headers.get("content-type") || "";
+
+  // Attempt silent refresh on 401
+  if (res.status === 401 && token) {
+    const newToken = await tryRefreshToken();
+    if (newToken) {
+      headers["Authorization"] = "Bearer " + newToken;
+      res = await fetch(path, { ...options, headers });
+    }
+  }
+
   if (!res.ok) {
     let msg = "Request failed";
     if (ct.includes("application/json")) {
@@ -66,7 +132,7 @@ async function fetchUser(token: string): Promise<UserInfo> {
   };
 }
 
-// ─── Hook ───────────────────────────────────────────────────────────────
+// ─── Hook ───
 
 const AUTH_LOAD_TIMEOUT = 8000;
 
@@ -102,9 +168,18 @@ export function useAuth() {
     setState((s) => ({ ...s, token, loading: true }));
     fetchUser(token)
       .then((user) => done({ token, user, loading: false }))
-      .catch((err) => {
+      .catch(async (err) => {
         console.warn("[useAuth] Failed to restore session:", err instanceof Error ? err.message : String(err));
-        setStoredToken(null);
+        // Try refresh before giving up
+        const newToken = await tryRefreshToken();
+        if (newToken && !cancelled) {
+          try {
+            const user = await fetchUser(newToken);
+            done({ token: newToken, user, loading: false });
+            return;
+          } catch { /* fall through */ }
+        }
+        clearAuth();
         done({ token: null, user: null, loading: false });
       });
 
@@ -114,22 +189,7 @@ export function useAuth() {
     };
   }, []);
 
-  // ─── Dev login (retained) ───────────────────────────────────────────
-
-  const login = useCallback(async (email: string) => {
-    const data = await apiCall<{ data: { accessToken: string; userId: string } }>(
-      "/api/auth/dev/token",
-      null,
-      { method: "POST", body: JSON.stringify({ email }) }
-    );
-    const token = data.data.accessToken;
-    setStoredToken(token);
-    const user = await fetchUser(token);
-    setState({ token, user, loading: false });
-    return user;
-  }, []);
-
-  // ─── Verification code (retained) ───────────────────────────────────
+  // ─── Verification code (retained) ───
 
   const sendCode = useCallback(async (email: string): Promise<string | null> => {
     try {
@@ -146,50 +206,42 @@ export function useAuth() {
 
   const loginWithCode = useCallback(async (email: string, code: string): Promise<string | null> => {
     try {
-      const data = await apiCall<{ data: { accessToken: string; userId: string } }>(
+      const data = await apiCall<{ data: { accessToken: string; refreshToken: string; userId: string } }>(
         "/api/auth/login",
         null,
         { method: "POST", body: JSON.stringify({ email, code }) }
       );
-      const token = data.data.accessToken;
-      setStoredToken(token);
-      const user = await fetchUser(token);
-      setState({ token, user, loading: false });
+      const { accessToken, refreshToken, userId } = data.data;
+      persistAuth(accessToken, refreshToken, userId);
+      const user = await fetchUser(accessToken);
+      setState({ token: accessToken, user, loading: false });
       return null;
     } catch (err) {
       return err instanceof Error ? err.message : "验证失败";
     }
   }, []);
 
-  // ─── Password login ─────────────────────────────────────────────────
+  // ─── Password login ───
 
-  /**
-   * 密码登录。
-   * 成功返回 null，失败返回错误信息字符串。
-   */
   const loginWithPassword = useCallback(async (email: string, password: string): Promise<string | null> => {
     try {
-      const data = await apiCall<{ data: { accessToken: string; userId: string } }>(
+      const data = await apiCall<{ data: { accessToken: string; refreshToken: string; userId: string } }>(
         "/api/auth/login",
         null,
         { method: "POST", body: JSON.stringify({ email, password }) }
       );
-      const token = data.data.accessToken;
-      setStoredToken(token);
-      const user = await fetchUser(token);
-      setState({ token, user, loading: false });
+      const { accessToken, refreshToken, userId } = data.data;
+      persistAuth(accessToken, refreshToken, userId);
+      const user = await fetchUser(accessToken);
+      setState({ token: accessToken, user, loading: false });
       return null;
     } catch (err) {
       return err instanceof Error ? err.message : "登录失败";
     }
   }, []);
 
-  // ─── Registration: captcha + send code ──────────────────────────────
+  // ─── Registration: captcha + send code ───
 
-  /**
-   * 注册-第一步：图形验证码校验 + 请求邮箱验证码。
-   * 成功返回 null，失败返回错误信息。
-   */
   const registerRequestCode = useCallback(async (
     email: string,
     captchaId: string,
@@ -199,10 +251,7 @@ export function useAuth() {
       await apiCall<{ data: { message: string } }>(
         "/api/auth/register/send-code",
         null,
-        {
-          method: "POST",
-          body: JSON.stringify({ email, captchaId, captchaText }),
-        }
+        { method: "POST", body: JSON.stringify({ email, captchaId, captchaText }) }
       );
       return null;
     } catch (err) {
@@ -210,12 +259,8 @@ export function useAuth() {
     }
   }, []);
 
-  // ─── Registration: verify email code + create account ───────────────
+  // ─── Registration: verify email code + create account ───
 
-  /**
-   * 注册-第二步：校验邮箱验证码 + 创建账户。
-   * 成功返回 null，失败返回错误信息。
-   */
   const registerVerify = useCallback(async (
     email: string,
     code: string,
@@ -225,10 +270,7 @@ export function useAuth() {
       await apiCall<{ data: { message: string } }>(
         "/api/auth/register/verify",
         null,
-        {
-          method: "POST",
-          body: JSON.stringify({ email, code, password }),
-        }
+        { method: "POST", body: JSON.stringify({ email, code, password }) }
       );
       return null;
     } catch (err) {
@@ -236,7 +278,7 @@ export function useAuth() {
     }
   }, []);
 
-  // ─── Logout ─────────────────────────────────────────────────────────
+  // ─── Logout ───
 
   const logout = useCallback(async () => {
     if (state.token) {
@@ -244,13 +286,12 @@ export function useAuth() {
         await apiCall("/api/auth/logout", state.token, { method: "POST" });
       } catch { /* ignore */ }
     }
-    setStoredToken(null);
+    clearAuth();
     setState({ token: null, user: null, loading: false });
   }, [state.token]);
 
   return {
     ...state,
-    login,
     sendCode,
     loginWithCode,
     loginWithPassword,

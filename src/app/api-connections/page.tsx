@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/lib/use-auth";
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 
 interface ProviderRow {
   id: string;
@@ -21,9 +22,8 @@ const PLATFORM_LABELS: Record<string, string> = {
 };
 
 export default function ApiConnectionsPage() {
-  const { user, loading, token, login } = useAuth();
-  const [email, setEmail] = useState("");
-  const [logging, setLogging] = useState(false);
+  const { user, loading, token } = useAuth();
+  const router = useRouter();
   const [providers, setProviders] = useState<ProviderRow[]>([]);
   const [fetching, setFetching] = useState(true);
 
@@ -45,23 +45,12 @@ export default function ApiConnectionsPage() {
     return <div className="flex h-dvh items-center justify-center text-gray-400">加载中...</div>;
   }
 
-  if (!user) {
-    return (
-      <div className="flex h-dvh flex-col items-center justify-center gap-4 px-6">
-        <div className="text-lg font-medium text-gray-800">叙境 Xujing</div>
-        <div className="text-sm text-gray-500">AI 恋爱陪伴平台</div>
-        <div className="mt-4 w-full max-w-xs space-y-3">
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-            placeholder="输入邮箱登录（开发模式）"
-            className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-gray-400" />
-          <button onClick={async () => { if (!email) return; setLogging(true); try { await login(email); } catch {} setLogging(false); }}
-            disabled={logging || !email}
-            className="w-full rounded-lg bg-gray-900 py-2.5 text-sm text-white disabled:opacity-50">
-            {logging ? "登录中..." : "登录"}
-          </button>
-        </div>
-      </div>
-    );
+  useEffect(() => {
+    if (!loading && !user) router.replace("/login");
+  }, [loading, user, router]);
+
+  if (loading || !user) {
+    return <div className="flex h-dvh items-center justify-center text-gray-400">加载中...</div>;
   }
 
   const isVip = user.subscription === "vip";
