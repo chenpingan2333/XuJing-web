@@ -12,6 +12,7 @@
 
 /* 修复 100vh 移动端溢出 */
 html, body {
+  height: 100vh;
   height: 100dvh;
   overflow: hidden;
 }
@@ -19,4 +20,18 @@ html, body {
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+
+
+/* ─── dvh fallback for older mobile browsers (Quark, vivo, etc.) ─── */
+/* Tailwind h-dvh only emits 100dvh; browsers without dvh support get 0 height → white screen */
+.h-dvh { height: 100vh; }
+.max-h-\[85dvh\] { max-height: 85vh; }
+.h-\[calc\(100dvh-56px\)\] { height: calc(100vh - 56px); }
+
+@supports (height: 100dvh) {
+  .h-dvh { height: 100dvh; }
+  .max-h-\[85dvh\] { max-height: 85dvh; }
+  .h-\[calc\(100dvh-56px\)\] { height: calc(100dvh - 56px); }
 }
