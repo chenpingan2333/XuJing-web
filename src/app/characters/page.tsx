@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useAuth } from "@/lib/use-auth";
 import { useState, useEffect, useCallback } from "react";
@@ -44,16 +44,16 @@ function truncateMsg(text: string, max = 12): string {
 }
 
 export default function CharactersPage() {
+  // ═══════════════════════════════════════════════════════════
+  // SECTION 1: ALL HOOKS — absolute top, no if/return/switch
+  // ═══════════════════════════════════════════════════════════
+
   const { user, loading, token } = useAuth();
   const router = useRouter();
   const [fetching, setFetching] = useState(true);
   const [official, setOfficial] = useState<CharacterRow[]>([]);
   const [userChars, setUserChars] = useState<CharacterRow[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
-
-  const isVip = user?.subscription === "vip";
-  const privateCount = userChars.filter(c => !c.isOfficial).length;
-  const atLimit = !isVip && privateCount >= FREE_LIMIT;
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -109,15 +109,26 @@ export default function CharactersPage() {
 
   useEffect(() => { if (user) fetchCharacters(); }, [fetchCharacters, user]);
 
-  const handleOpenCreate = () => {
-    if (atLimit) return;
+  const handleOpenCreate = useCallback(() => {
     setShowCreateModal(true);
-  };
+  }, []);
 
-  const handleImported = () => {
+  const handleImported = useCallback(() => {
     setFetching(true);
     fetchCharacters();
-  };
+  }, [fetchCharacters]);
+
+  // ═══════════════════════════════════════════════════════════
+  // SECTION 2: Derived values (non-hook, after all hooks)
+  // ═══════════════════════════════════════════════════════════
+
+  const isVip = user?.subscription === "vip";
+  const privateCount = userChars.filter(c => !c.isOfficial).length;
+  const atLimit = !isVip && privateCount >= FREE_LIMIT;
+
+  // ═══════════════════════════════════════════════════════════
+  // SECTION 3: EARLY RETURNS — after all hooks
+  // ═══════════════════════════════════════════════════════════
 
   if (loading || !user || fetching) {
     return (
@@ -126,6 +137,10 @@ export default function CharactersPage() {
       </div>
     );
   }
+
+  // ═══════════════════════════════════════════════════════════
+  // SECTION 4: RENDER
+  // ═══════════════════════════════════════════════════════════
 
   return (
     <div className="flex h-dvh flex-col bg-stone-50">
@@ -258,7 +273,6 @@ function CharacterCard({ character: c }: { character: CharacterRow }) {
         )}
       </div>
 
-      {/* Name + time row */}
       <div className="flex items-start justify-between gap-1">
         <h3 className="text-sm font-medium text-neutral-800 truncate leading-snug flex-1 min-w-0">{c.name ?? "…"}</h3>
         {c.lastChatAt && (
@@ -266,7 +280,6 @@ function CharacterCard({ character: c }: { character: CharacterRow }) {
         )}
       </div>
 
-      {/* Last message preview */}
       {c.lastMessage ? (
         <p className="text-[11px] text-stone-400 leading-relaxed mt-1 line-clamp-2">{truncateMsg(c.lastMessage, 10)}</p>
       ) : desc ? (

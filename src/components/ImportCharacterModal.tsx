@@ -28,7 +28,6 @@ interface ImportCharacterModalProps {
 
 // ─── Format Adapters ───
 
-/** Detect if JSON matches the user's nested Xujing template */
 function isXujingNested(data: any): boolean {
   return (
     typeof data?.name === "string" &&
@@ -40,12 +39,10 @@ function isXujingNested(data: any): boolean {
   );
 }
 
-/** Detect Tavern Card v2 */
 function isTavernCard(data: any): boolean {
   return data?.spec === "chara_card_v2" && data?.spec_version === "2.0" && data?.data;
 }
 
-/** Detect legacy flat Xujing / SillyTavern */
 function isLegacyCard(data: any): boolean {
   return (
     typeof data?.name === "string" &&
@@ -57,7 +54,6 @@ function isLegacyCard(data: any): boolean {
 }
 
 function adaptCharacter(data: any): ParsedCharacter | null {
-  // Xujing nested template (priority)
   if (isXujingNested(data)) {
     return {
       name: data.name?.trim() || "",
@@ -74,7 +70,6 @@ function adaptCharacter(data: any): ParsedCharacter | null {
     };
   }
 
-  // Tavern Card v2
   if (isTavernCard(data)) {
     const d = data.data;
     return {
@@ -91,7 +86,6 @@ function adaptCharacter(data: any): ParsedCharacter | null {
     };
   }
 
-  // Legacy flat (Xujing or SillyTavern)
   if (isLegacyCard(data)) {
     return {
       name: data.name?.trim() || "",
@@ -129,6 +123,10 @@ export default function ImportCharacterModal({
   onImported,
   token,
 }: ImportCharacterModalProps) {
+  // ═══════════════════════════════════════════════════════════
+  // SECTION 1: ALL HOOKS — absolute top, no if/return
+  // ═══════════════════════════════════════════════════════════
+
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -138,12 +136,37 @@ export default function ImportCharacterModal({
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  // Image upload state
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string>("");
   const [uploading, setUploading] = useState(false);
 
+  // Drag & Drop callbacks (must be BEFORE any early return)
+  const handleDragOver = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
+  }, []);
+
+  // ═══════════════════════════════════════════════════════════
+  // SECTION 2: EARLY RETURN — after all hooks
+  // ═══════════════════════════════════════════════════════════
+
   if (!open) return null;
+
+  // ═══════════════════════════════════════════════════════════
+  // SECTION 3: Plain functions and handlers
+  // ═══════════════════════════════════════════════════════════
 
   const reset = () => {
     setStep("choose");
@@ -163,7 +186,7 @@ export default function ImportCharacterModal({
 
   // ─── JSON File Handling ───
 
-  const processFile = (file: File) => {
+  function processFile(file: File) {
     if (!file.name.toLowerCase().endsWith(".json")) {
       setError("请选择有效的 .json 角色卡文件");
       return;
@@ -191,7 +214,7 @@ export default function ImportCharacterModal({
       }
     };
     reader.readAsText(file);
-  };
+  }
 
   const handleFilePick = () => fileInputRef.current?.click();
 
@@ -199,24 +222,6 @@ export default function ImportCharacterModal({
     const file = e.target.files?.[0];
     if (file) processFile(file);
   };
-
-  // Drag & Drop
-  const handleDragOver = useCallback((e: DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  }, []);
-
-  const handleDrop = useCallback((e: DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) processFile(file);
-  }, []);
 
   // ─── Image Upload ───
 
@@ -250,7 +255,6 @@ export default function ImportCharacterModal({
     try {
       let avatarUrl = parsed.avatarUrl || "";
 
-      // Upload avatar if user selected a new file
       if (avatarFile) {
         setUploading(true);
         try {
@@ -309,7 +313,6 @@ export default function ImportCharacterModal({
 
       reset();
       onImported();
-      // Navigate to chat
       if (result.data?.id) {
         router.push("/chat/" + result.data.id);
       }
@@ -318,6 +321,10 @@ export default function ImportCharacterModal({
       setStep("preview");
     }
   };
+
+  // ═══════════════════════════════════════════════════════════
+  // SECTION 4: Derived values & RENDER
+  // ═══════════════════════════════════════════════════════════
 
   const hasAdvanced =
     parsed &&
@@ -332,18 +339,15 @@ export default function ImportCharacterModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-stone-900/20 backdrop-blur-sm transition-opacity"
         onClick={handleClose}
       />
 
-      {/* Modal */}
       <div className="relative w-full sm:max-w-sm mx-4 max-h-[85dvh] overflow-y-auto bg-white rounded-2xl shadow-xl animate-in fade-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95">
         <input ref={fileInputRef} type="file" accept=".json" onChange={handleFileChange} className="hidden" />
         <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageChange} className="hidden" />
 
-        {/* ── Step: Choose ── */}
         {step === "choose" && (
           <div className="p-6">
             <h2 className="text-base font-semibold text-neutral-900 mb-5">创建角色</h2>
@@ -373,12 +377,10 @@ export default function ImportCharacterModal({
           </div>
         )}
 
-        {/* ── Step: Preview ── */}
         {step === "preview" && parsed && (
           <div className="p-6">
             <h2 className="text-base font-semibold text-neutral-900 mb-5">预览角色卡</h2>
 
-            {/* Avatar + Name */}
             <div className="flex items-center gap-4 mb-5">
               <button
                 onClick={handleImagePick}
@@ -401,17 +403,14 @@ export default function ImportCharacterModal({
               </div>
             </div>
 
-            {/* Setting */}
             <Section label="角色设定">
               <p className="text-xs text-stone-600 leading-relaxed line-clamp-3">{parsed.setting}</p>
             </Section>
 
-            {/* Greeting */}
             <Section label="开场白">
               <p className="text-xs text-stone-600 leading-relaxed line-clamp-2">{parsed.greeting}</p>
             </Section>
 
-            {/* Advanced */}
             {hasAdvanced && (
               <div className="mb-4 rounded-xl bg-stone-50 p-3">
                 <span className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">高级定义</span>
@@ -435,14 +434,12 @@ export default function ImportCharacterModal({
               </div>
             )}
 
-            {/* Error */}
             {error && (
               <div className="mb-4 rounded-xl bg-stone-50 px-4 py-3 text-xs text-stone-500">
                 {error}
               </div>
             )}
 
-            {/* Actions */}
             <div className="flex gap-3">
               <button
                 onClick={() => { setStep("choose"); setParsed(null); setAvatarFile(null); setAvatarPreview(""); setError(null); }}
@@ -461,7 +458,6 @@ export default function ImportCharacterModal({
           </div>
         )}
 
-        {/* ── Step: Importing ── */}
         {step === "importing" && (
           <div className="p-10 flex flex-col items-center justify-center gap-3">
             <svg className="animate-spin h-6 w-6 text-stone-400" viewBox="0 0 20 20" fill="none">
