@@ -96,7 +96,19 @@ export default function MePage() {
         </div>
       </div>
 
-      {/* 用户人设 */}
+      
+      {/* 管理后台入口 — 仅 admin 可见 */}
+      {user.role === 'ADMIN' && (
+        <div className="mx-5 mt-4">
+          <div
+            onClick={() => router.push('/admin')}
+            className="flex items-center justify-between rounded-lg bg-neutral-900 px-4 py-3 cursor-pointer hover:bg-neutral-800 transition-colors"
+          >
+            <span className="text-sm text-stone-50">管理后台</span>
+            <span className="text-sm text-stone-400">&rarr;</span>
+          </div>
+        </div>
+      )}{/* 用户人设 */}
       <div className="mx-5 mt-4">
         <div
           onClick={() => router.push("/settings/persona")}
