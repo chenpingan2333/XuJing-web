@@ -1,4 +1,6 @@
-﻿"use client";
+"use client";
+
+import { ActionButtons } from "./ActionButtons";
 
 interface Message {
   id: string;
@@ -25,11 +27,7 @@ export function MessageList({
   onSuggest,
 }: MessageListProps) {
   if (messages.length === 0) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <p className="text-sm text-stone-300">开始对话吧</p>
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -98,77 +96,15 @@ function MessageBubble({
         </div>
 
         {showActions && (
-          <div className="flex gap-1 mt-1.5 ml-1">
-            <ActionButton
-              label="重新生成回复"
-              activeLabel="重新生成..."
-              action="regenerate"
-              activeAction={activeAction}
-              loading={loading}
-              onClick={onRegenerate}
-              char="↺"
-            />
-            <ActionButton
-              label="再回复一句"
-              activeLabel="继续..."
-              action="continue"
-              activeAction={activeAction}
-              loading={loading}
-              onClick={onContinue}
-              char="→"
-            />
-            <ActionButton
-              label="AI 灵感回复"
-              activeLabel="生成中..."
-              action="suggest"
-              activeAction={activeAction}
-              loading={loading}
-              onClick={onSuggest}
-              char="✨"
-            />
-          </div>
+          <ActionButtons
+            loading={loading}
+            activeAction={activeAction}
+            onRegenerate={onRegenerate}
+            onContinue={onContinue}
+            onSuggest={onSuggest}
+          />
         )}
       </div>
     </div>
-  );
-}
-
-function ActionButton({
-  label,
-  activeLabel,
-  action,
-  activeAction,
-  loading,
-  onClick,
-  char,
-}: {
-  label: string;
-  activeLabel: string;
-  action: string;
-  activeAction?: string | null;
-  loading?: boolean;
-  onClick?: () => void;
-  char: string;
-}) {
-  const isActive = activeAction === action;
-  const disabled = loading && !isActive;
-
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled || !onClick}
-      title={isActive ? activeLabel : label}
-      className={
-        "flex items-center gap-0.5 h-7 rounded-md px-1.5 text-xs transition-colors " +
-        (isActive
-          ? "text-stone-500 bg-stone-100"
-          : disabled
-            ? "text-stone-200 cursor-not-allowed"
-            : "text-stone-300 hover:text-stone-500 hover:bg-stone-100")
-      }
-    >
-      <span>{char}</span>
-      {isActive && <span className="text-[10px] text-stone-400">...</span>}
-    </button>
   );
 }

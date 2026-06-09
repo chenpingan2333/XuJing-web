@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useAuth } from "@/lib/use-auth";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -13,6 +13,7 @@ interface CharacterData {
   id: string;
   name: string;
   avatarUrl?: string;
+  greeting?: string;
 }
 
 interface MessageData {
@@ -93,8 +94,12 @@ export function ChatClient({ characterId }: { characterId: string }) {
   const [activeAction, setActiveAction] = useState<StreamAction>(null);
   const [hasApiConfigured, setHasApiConfigured] = useState(true);
   const [needsApiConfig, setNeedsApiConfig] = useState(false);
+  const [greetingDismissed, setGreetingDismissed] = useState(false);
 
   const isVip = user?.subscription === "vip";
+
+  const hasGreeting = !!character?.greeting;
+  const showGreeting = hasGreeting && messages.length === 0 && !greetingDismissed;
 
   // ── Redirect unauthenticated users ──
   useEffect(() => {
@@ -134,7 +139,14 @@ export function ChatClient({ characterId }: { characterId: string }) {
       const headers = { Authorization: "Bearer " + token };
       const charRes = await fetch("/api/characters/" + characterId, { headers });
       const charData = await charRes.json();
-      if (charData.success && charData.data) setCharacter(charData.data);
+      if (charData.success && charData.data) {
+        setCharacter({
+          id: charData.data.id,
+          name: charData.data.name,
+          avatarUrl: charData.data.avatarUrl,
+          greeting: charData.data.greeting,
+        });
+      }
 
       const chatRes = await fetch("/api/chat/" + characterId, { headers });
       const chatData = await chatRes.json();
@@ -344,7 +356,7 @@ export function ChatClient({ characterId }: { characterId: string }) {
   // ── Main chat layout ──
   return (
     <div className="flex flex-col h-dvh bg-stone-50">
-      {character && (
+      {character && !showGreeting && (
         <CharacterHeader
           name={character.name ?? ""}
           avatarUrl={character.avatarUrl ?? null}
@@ -353,14 +365,64 @@ export function ChatClient({ characterId }: { characterId: string }) {
         />
       )}
 
-      <MessageList
-        messages={messages}
-        loading={isStreaming}
-        activeAction={activeAction}
-        onRegenerate={handleRegenerate}
-        onContinue={handleContinue}
-        onSuggest={handleSuggest}
-      />
+      {/* Opening Ceremony */}
+      {showGreeting && character && (
+        <div className="flex-1 flex flex-col items-center justify-center px-8 pb-16">
+          {/* Avatar with blur glow */}
+          <div className="relative mb-8">
+            <div className="absolute inset-0 rounded-full bg-stone-300/40 blur-2xl scale-150" />
+            <div className="relative w-24 h-24 rounded-full bg-stone-200 overflow-hidden ring-4 ring-white/80 shadow-lg">
+              {character.avatarUrl ? (
+                <img
+                  src={character.avatarUrl}
+                  alt={character.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-stone-400 text-3xl font-light select-none">
+                  {character.name?.charAt(0) ?? "?"}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Name */}
+          <h2 className="text-xl font-semibold tracking-tight text-neutral-900 mb-3">
+            {character.name ?? "—"}
+          </h2>
+
+          {/* Greeting */}
+          <p className="text-sm text-stone-400 text-center leading-relaxed max-w-xs mb-10">
+            {character.greeting ?? ""}
+          </p>
+
+          {/* Start button */}
+          <button
+            onClick={() => setGreetingDismissed(true)}
+            className="inline-flex items-center gap-2 rounded-full bg-neutral-900 px-8 py-3 text-sm font-medium text-stone-50 transition-all duration-200 hover:bg-neutral-800 active:scale-[0.97] shadow-lg shadow-neutral-900/10"
+          >
+            开始对话
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 7h10M8 3l4 4-4 4" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Normal chat (hidden during greeting) */}
+      {!showGreeting && (
+        <MessageList
+          messages={messages}
+          loading={isStreaming}
+          activeAction={activeAction}
+          onRegenerate={handleRegenerate}
+          onContinue={handleContinue}
+          onSuggest={handleSuggest}
+        />
+      )}
 
       <InputBar ref={inputBarRef} onSend={handleSend} disabled={isStreaming} />
 
