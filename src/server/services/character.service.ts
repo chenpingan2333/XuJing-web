@@ -1,4 +1,4 @@
-﻿/**
+/**
  * CharacterService — Phase 7.2
  *
  * Responsibilities: character CRUD, import/export, quota control, permission checks.
@@ -276,7 +276,7 @@ export class CharacterService {
   }
 
   async listCharacters(_auth: AuthUser) {
-    const official = await characterRepository.findOfficial(_auth.userId);
+    const official = await characterRepository.findGlobalOfficial();
     const userChars = await characterRepository.findUserCharacters(_auth.userId);
     return { official, user: userChars };
   }
