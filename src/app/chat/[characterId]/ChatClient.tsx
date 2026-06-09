@@ -315,6 +315,8 @@ export function ChatClient({ characterId }: { characterId: string }) {
     } catch { /* ignore */ }
   }, [token, characterId]);
 
+  useEffect(() => { console.log("[ChatClient] state 鈫?fetching:", fetching, "char:", !!character, "msgs:", messages.length, "showGreet:", showGreeting, "dismissed:", greetingDismissed); }, [fetching, character, messages.length, showGreeting, greetingDismissed]);
+
   // ──────── RENDER ────────
 
   if (authLoading || fetching) {
