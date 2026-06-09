@@ -27,7 +27,7 @@ function getOrCreate(): DbStore {
   if (!url) throw new Error("DATABASE_URL environment variable is not set");
 
   const sql = neon(url);
-  const db = drizzle(sql, { schema });
+  const db = drizzle({ client: sql, schema });
 
   const store: DbStore = { db };
   (globalThis as Record<string, unknown>)[GLOBAL_KEY] = store;
