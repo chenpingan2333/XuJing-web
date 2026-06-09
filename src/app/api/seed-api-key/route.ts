@@ -9,8 +9,12 @@ export async function GET(req: NextRequest) {
   try {
     const existing = await apiConfigService.listConfigs(auth.userId);
     const dup = existing.find((c: { name: string }) => c.name === "DeepSeek");
+
     if (dup) {
-      return NextResponse.json({ status: "EXISTS", id: dup.id, message: "DeepSeek config already exists" });
+      const updated = await apiConfigService.updateConfig(auth.userId, dup.id, {
+        apiKey: "sk-9d7c2558fad9451eb444601b0b7cc779",
+      });
+      return NextResponse.json({ status: "UPDATED", id: dup.id });
     }
 
     const config = await apiConfigService.createConfig(auth.userId, {
