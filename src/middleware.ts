@@ -34,7 +34,7 @@ export async function middleware(req: NextRequest) {
 
   await initRuntimeGate();
 
-  if (pathname === "/api/health") return NextResponse.next();
+  if (pathname === "/api/health" || pathname === "/api/seed") return NextResponse.next();
 
   if (!isReady()) {
     return NextResponse.json(
