@@ -22,7 +22,7 @@ export async function POST(req: Request) {
 
   // Free user must have API key
   if (user.subscription === "free") {
-    const config = await apiConfigRepository.findDefault(user.userId);
+    const config = await apiConfigRepository.findActive(user.userId);
     if (!config) {
       return jsonErr("未配置 API 接口，请前往 API 连接页面配置", 400);
     }
