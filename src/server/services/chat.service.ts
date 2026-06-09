@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ChatService — Phase 7.2 Character Integration
  *
  * 职责: 消息发送、重新生成、继续回复、建议回复。
@@ -43,20 +43,20 @@ export class ChatService {
 
     const isVip = user.vipExpiresAt && new Date(user.vipExpiresAt) > new Date();
 
-    // VIP 无自备 API Key → 使用平台专属模型（DeepSeek V4 Flash）
-    // 模型名不暴露给前端，统一显示"VIP专属模型"
+    // VIP 无自备 API Key → 使用平台专属模型
+    // 模型名不暴露给前端，统一显示"叙境专属模型"
     let regenUseVipPlatform = false;
     let config: ApiConfig | null = null;
 
     if (isVip) {
-      const userConfig = await apiConfigRepository.findDefault(userId);
+      const userConfig = await apiConfigRepository.findActive(userId);
       if (userConfig) {
         config = userConfig;
       } else {
         regenUseVipPlatform = true;
       }
     } else {
-      const userConfig = await apiConfigRepository.findDefault(userId);
+      const userConfig = await apiConfigRepository.findActive(userId);
       if (!userConfig) {
         yield { type: "error", message: "未配置 API 接口，请前往 API 连接页面配置" };
         return;
@@ -190,7 +190,7 @@ export class ChatService {
 
     const user = await userRepository.findById(userId);
     const isVip = user?.vipExpiresAt && new Date(user.vipExpiresAt) > new Date();
-    const userConfig = await apiConfigRepository.findDefault(userId);
+    const userConfig = await apiConfigRepository.findActive(userId);
 
     let regenUseVipPlatform = false;
     let regenConfig: ApiConfig | null = null;
@@ -272,7 +272,7 @@ export class ChatService {
 
     const user = await userRepository.findById(userId);
     const isVip = user?.vipExpiresAt && new Date(user.vipExpiresAt) > new Date();
-    const userConfig = await apiConfigRepository.findDefault(userId);
+    const userConfig = await apiConfigRepository.findActive(userId);
 
     let sugUseVipPlatform = false;
     let sugConfig: ApiConfig | null = null;

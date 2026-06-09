@@ -8,6 +8,17 @@ export class CharacterRepository {
     return r ?? null;
   }
 
+  /**
+   * 查询全局官方角色（userId IS NULL）。
+   * 所有用户共享同一份官方角色，不再为每个用户复制。
+   */
+  async findGlobalOfficial() {
+    return db.select().from(characters).where(
+      and(eq(characters.isOfficial, true), isNull(characters.userId), isNull(characters.deletedAt))
+    );
+  }
+
+  /** @deprecated 保留向后兼容——返回特定用户的官方角色副本 */
   async findOfficial(userId?: string) {
     const conditions = [eq(characters.isOfficial, true)];
     if (userId) {

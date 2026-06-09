@@ -9,7 +9,7 @@ const PLATFORM_PRESETS: Record<string, { label: string; url: string; modelHint: 
   OPENAI:           { label: "GPT (OpenAI)",         url: "https://api.openai.com",                      modelHint: "gpt-4.1",                isCustom: false },
   ANTHROPIC:        { label: "Claude (Anthropic)",   url: "https://api.anthropic.com",                   modelHint: "claude-sonnet-4-20250514", isCustom: false },
   GEMINI:           { label: "Gemini (Google)",      url: "https://generativelanguage.googleapis.com",    modelHint: "gemini-2.5-pro",         isCustom: false },
-  DEEPSEEK:         { label: "DeepSeek",             url: "https://api.deepseek.com",                     modelHint: "deepseek-chat",          isCustom: false },
+  DEEPSEEK:         { label: "DeepSeek",             url: "https://api.deepseek.com",                     modelHint: "自动填充",                isCustom: false },
   GROK:             { label: "Grok (xAI)",           url: "https://api.x.ai",                             modelHint: "grok-4",                 isCustom: false },
   CUSTOM_OPENAI:    { label: "自定义 (OpenAI 兼容)",  url: "",                                            modelHint: "",                        isCustom: true },
   CUSTOM_ANTHROPIC: { label: "自定义 (Anthropic 兼容)", url: "",                                          modelHint: "",                        isCustom: true },

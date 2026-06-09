@@ -1,4 +1,4 @@
-import { db } from "@/db";
+﻿import { db } from "@/db";
 import { apiConfigs } from "@/db/schema/api-configs";
 import { eq, and } from "drizzle-orm";
 
@@ -47,6 +47,38 @@ export class ApiConfigRepository {
       const [result] = await tx
         .update(apiConfigs)
         .set({ isDefault: true })
+        .where(eq(apiConfigs.id, configId))
+        .returning();
+
+      return result;
+    });
+  }
+
+  /**
+   * 查询当前激活的配置（is_active = true）。
+   */
+  async findActive(userId: string) {
+    const [r] = await db.select().from(apiConfigs).where(
+      and(eq(apiConfigs.userId, userId), eq(apiConfigs.isActive, true))
+    ).limit(1);
+    return r ?? null;
+  }
+
+  /**
+   * 设置激活配置 — 事务内原子完成：
+   *  1. 清除当前用户全部 is_active
+   *  2. 设置目标配置 is_active = true
+   */
+  async setActive(userId: string, configId: string) {
+    return db.transaction(async (tx) => {
+      await tx
+        .update(apiConfigs)
+        .set({ isActive: false })
+        .where(eq(apiConfigs.userId, userId));
+
+      const [result] = await tx
+        .update(apiConfigs)
+        .set({ isActive: true, isDefault: true })
         .where(eq(apiConfigs.id, configId))
         .returning();
 

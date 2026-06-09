@@ -63,7 +63,7 @@ export class ProviderGateway {
   }
 
   /**
-   * VIP 骞冲彴妯″瀷 鈥?DeepSeek V4 Flash 涓撳睘璺敱
+   * VIP 平台模型——专属路由
    *
    * 浠呮湇鍔＄璋冪敤銆侫PI Key 瀹屽叏鏉ヨ嚜鐜鍙橀噺 PLATFORM_API_KEY锛?   * 涓嶇粡杩囨暟鎹簱鍔犲瘑灞傦紝涓嶇粡杩囦换浣曚腑闂翠欢浼犻€掞紝姘镐笉鏆撮湶缁欏墠绔€?   * 鍓嶇缁熶竴鏄剧ず涓?VIP涓撳睘妯″瀷"锛屼笉鏆撮湶瀹為檯妯″瀷鍚嶇О銆?   */
   async *vipPlatformChat(

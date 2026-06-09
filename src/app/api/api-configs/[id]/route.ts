@@ -1,4 +1,4 @@
-/**
+﻿/**
  * GET    /api/api-configs/[id] — 详情
  * PUT    /api/api-configs/[id] — 更新
  * DELETE /api/api-configs/[id] — 删除
@@ -61,6 +61,33 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     return jsonOk(updated);
   } catch (err) {
     return jsonErr(err instanceof Error ? err.message : "Update failed", 500);
+  }
+}
+
+// ——— PATCH: 设置激活/默认 ———
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireAuth(req);
+  if (auth instanceof Response) return auth;
+  const { id } = await params;
+
+  const config = await getConfig(auth, id);
+  if (config instanceof Response) return config;
+
+  let body: { action?: string } = {};
+  try { body = await req.json(); } catch { /* ignore */ }
+
+  try {
+    if (body.action === "activate") {
+      await apiConfigRepository.setActive(auth.userId, id);
+      return jsonOk({ activated: true });
+    }
+    if (body.action === "set_default") {
+      await apiConfigRepository.setDefault(auth.userId, id);
+      return jsonOk({ defaulted: true });
+    }
+    return jsonErr("Unknown action. Use: activate | set_default", 400);
+  } catch (err) {
+    return jsonErr(err instanceof Error ? err.message : "Action failed", 500);
   }
 }
 

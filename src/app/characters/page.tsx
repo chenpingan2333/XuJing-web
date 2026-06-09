@@ -236,7 +236,7 @@ export default function CharactersPage() {
                 <span className="text-amber-500 text-sm">&#9733;</span>
                 <div>
                   <span className="text-xs font-medium text-amber-800">叙境专属模型</span>
-                  <span className="block text-[10px] text-amber-600">VIP 自动使用 DeepSeek-V4-Flash</span>
+                  <span className="block text-[10px] text-amber-600">VIP已接入叙境专属对话大模型，可在api key设置里自主选择</span>
                 </div>
               </div>
             </div>
