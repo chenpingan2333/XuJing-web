@@ -19,7 +19,7 @@ export class CharacterRepository {
   }
 
   async findUserCharacters(userId: string) {
-    return db.select().from(characters).where(and(eq(characters.userId, userId), isNull(characters.deletedAt)));
+    return db.select().from(characters).where(and(eq(characters.userId, userId), isNull(characters.deletedAt), eq(characters.isOfficial, false)));
   }
 
   async countUserCharacters(userId: string) {

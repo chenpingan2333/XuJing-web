@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useAuth } from "@/lib/use-auth";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -27,6 +27,7 @@ interface MemoryStatus {
 type StreamAction = "send" | "regenerate" | "continue" | "suggest" | null;
 
 // ─── SSE stream consumer (shared by send / regenerate / continue) ───
+
 async function consumeSSEStream(
   res: Response,
   onDelta: (content: string) => void,
@@ -35,7 +36,7 @@ async function consumeSSEStream(
 ) {
   const reader = res.body?.getReader();
   if (!reader) {
-    onError("无法读取服务器响应");
+    onError("Unable to read response");
     return;
   }
 
@@ -61,7 +62,7 @@ async function consumeSSEStream(
             onDone();
             return;
           } else if (evt.type === "error") {
-            onError(evt.message || "AI 响应出错");
+            onError(evt.message || "AI response error");
             return;
           }
         } catch {
@@ -70,14 +71,14 @@ async function consumeSSEStream(
       }
     }
   } catch {
-    onError("网络连接异常，请重试");
+    onError("Network error, please retry");
   }
 
   // Stream ended without explicit "done" — treat as done
   onDone();
 }
 
-// ─── Main Component ─────────────────────────────────
+// ─── Main Component ───────────────────────────────────────────
 
 export function ChatClient({ characterId }: { characterId: string }) {
   const { user, loading: authLoading, token } = useAuth();
@@ -97,11 +98,11 @@ export function ChatClient({ characterId }: { characterId: string }) {
       const headers = { Authorization: "Bearer " + token };
       const charRes = await fetch("/api/characters/" + characterId, { headers });
       const charData = await charRes.json();
-      if (charData.success) setCharacter(charData.data);
+      if (charData.success && charData.data) setCharacter(charData.data);
 
       const chatRes = await fetch("/api/chat/" + characterId, { headers });
       const chatData = await chatRes.json();
-      if (chatData.success) {
+      if (chatData.success && chatData.data) {
         setMessages(chatData.data.messages ?? []);
         setMemory(chatData.data.memory ?? { used: 0, limit: 100 });
       }
@@ -151,9 +152,9 @@ export function ChatClient({ characterId }: { characterId: string }) {
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "发送失败" }));
+        const err = await res.json().catch(() => ({ error: "Send failed" }));
         setMessages((prev) =>
-          prev.map((m) => (m.id === aiMsgId ? { ...m, content: err.error || "发送失败" } : m)),
+          prev.map((m) => (m.id === aiMsgId ? { ...m, content: err.error || "Send failed" } : m)),
         );
         return;
       }
@@ -173,7 +174,6 @@ export function ChatClient({ characterId }: { characterId: string }) {
           );
         },
         () => {
-          // Refresh memory count after message completes
           refreshMemory();
         },
       );
@@ -189,11 +189,9 @@ export function ChatClient({ characterId }: { characterId: string }) {
     setIsStreaming(true);
     setActiveAction("regenerate");
 
-    // Find last AI message to replace
     const lastAiIdx = findLastAiIndex(messages);
     const targetId = lastAiIdx >= 0 ? messages[lastAiIdx].id : "ai-" + Date.now();
 
-    // Clear the last AI message content
     setMessages((prev) =>
       prev.map((m) =>
         m.id === targetId ? { ...m, content: "" } : m,
@@ -207,9 +205,9 @@ export function ChatClient({ characterId }: { characterId: string }) {
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "重新生成失败" }));
+        const err = await res.json().catch(() => ({ error: "Regenerate failed" }));
         setMessages((prev) =>
-          prev.map((m) => (m.id === targetId ? { ...m, content: err.error || "重新生成失败" } : m)),
+          prev.map((m) => (m.id === targetId ? { ...m, content: err.error || "Regenerate failed" } : m)),
         );
         return;
       }
@@ -255,9 +253,9 @@ export function ChatClient({ characterId }: { characterId: string }) {
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "续写失败" }));
+        const err = await res.json().catch(() => ({ error: "Continue failed" }));
         setMessages((prev) =>
-          prev.map((m) => (m.id === aiMsgId ? { ...m, content: err.error || "续写失败" } : m)),
+          prev.map((m) => (m.id === aiMsgId ? { ...m, content: err.error || "Continue failed" } : m)),
         );
         return;
       }
@@ -300,7 +298,7 @@ export function ChatClient({ characterId }: { characterId: string }) {
 
       const data = await res.json();
       if (data.success && data.data?.suggestion) {
-        inputBarRef.current?.fillText(data.data.suggestion);
+        inputBarRef.current?.fillText?.(data.data.suggestion);
       }
     } catch {
       // silent fail for suggest
@@ -330,20 +328,16 @@ export function ChatClient({ characterId }: { characterId: string }) {
   if (authLoading || (fetching && !user)) {
     return (
       <div className="flex h-dvh items-center justify-center bg-stone-50">
-        <div className="text-sm text-stone-300">加载中...</div>
+        <div className="text-sm text-stone-300">Loading...</div>
       </div>
     );
   }
 
   // --- Unauthenticated ---
-  if (!user) useEffect(() => {
-    if (!authLoading && !user) window.location.href = "/login";
-  }, [authLoading, user]);
-
-  if (authLoading || !user) {
+  if (!user) {
     return (
       <div className="flex h-dvh items-center justify-center bg-stone-50">
-        <span className="text-sm text-stone-300">加载中...</span>
+        <span className="text-sm text-stone-300">Loading...</span>
       </div>
     );
   }
@@ -353,8 +347,8 @@ export function ChatClient({ characterId }: { characterId: string }) {
     <div className="flex flex-col h-dvh bg-stone-50">
       {character && (
         <CharacterHeader
-          name={character.name}
-          avatarUrl={character.avatarUrl}
+          name={character.name ?? ""}
+          avatarUrl={character.avatarUrl ?? null}
           memoryUsed={memory.used}
           memoryLimit={memory.limit}
         />
@@ -387,10 +381,10 @@ function findLastAiIndex(msgs: MessageData[]): number {
 // --- Bottom Navigation ---
 function BottomNav({ current }: { current: "characters" | "chat" | "shop" | "me" }) {
   const tabs = [
-    { key: "characters", label: "角色", href: "/characters", icon: CharactersIcon },
-    { key: "chat", label: "聊天", href: "/chat", icon: ChatIcon },
-    { key: "shop", label: "商店", href: "/shop", icon: ShopIcon },
-    { key: "me", label: "我的", href: "/me", icon: MeIcon },
+    { key: "characters", label: "Characters", href: "/characters", icon: CharactersIcon },
+    { key: "chat", label: "Chat", href: "/chat", icon: ChatIcon },
+    { key: "shop", label: "Shop", href: "/shop", icon: ShopIcon },
+    { key: "me", label: "Me", href: "/me", icon: MeIcon },
   ] as const;
 
   return (

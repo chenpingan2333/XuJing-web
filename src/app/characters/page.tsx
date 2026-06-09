@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useAuth } from "@/lib/use-auth";
 import { useState, useEffect, useCallback } from "react";
@@ -26,8 +26,8 @@ export default function CharactersPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const isVip = user?.subscription === "vip";
-  const charCount = userChars.length;
-  const atLimit = !isVip && charCount >= FREE_LIMIT;
+  const privateCount = userChars.filter(c => !c.isOfficial).length;
+  const atLimit = !isVip && privateCount >= FREE_LIMIT;
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -63,7 +63,7 @@ export default function CharactersPage() {
   if (loading || !user || fetching) {
     return (
       <div className="flex h-dvh items-center justify-center bg-stone-50">
-        <span className="text-sm text-stone-300">加载中...</span>
+        <span className="text-sm text-stone-300">Loading...</span>
       </div>
     );
   }
@@ -73,13 +73,13 @@ export default function CharactersPage() {
       {/* Header */}
       <header className="shrink-0 px-6 pt-12 pb-3 flex items-end justify-between">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight text-neutral-900">叙境</h1>
+          <h1 className="text-lg font-semibold tracking-tight text-neutral-900">Xujing</h1>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-[11px] text-stone-400">
-              {isVip ? "已创建 " + charCount + " 个角色" : charCount + " / " + FREE_LIMIT}
+              {isVip ? "Created " + privateCount + " characters" : privateCount + " / " + FREE_LIMIT}
             </span>
             {atLimit && (
-              <span className="text-[10px] text-stone-300 bg-stone-100 px-1.5 py-0.5 rounded-full">已满</span>
+              <span className="text-[10px] text-stone-300 bg-stone-100 px-1.5 py-0.5 rounded-full">Full</span>
             )}
           </div>
         </div>
@@ -96,7 +96,7 @@ export default function CharactersPage() {
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M7 3v8M3 7h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
-          新建
+          New
         </button>
       </header>
 
@@ -105,7 +105,7 @@ export default function CharactersPage() {
         {official.length > 0 && (
           <section className="mb-8">
             <h2 className="px-2 mb-3 text-[11px] font-medium text-stone-400 tracking-wider uppercase">
-              叙境专属角色
+              Official Characters
             </h2>
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
               {official.map((c) => (
@@ -117,9 +117,9 @@ export default function CharactersPage() {
 
         <section>
           <h2 className="px-2 mb-3 text-[11px] font-medium text-stone-400 tracking-wider uppercase">
-            我的角色
+            My Characters
           </h2>
-          {userChars.length === 0 ? (
+          {userChars.filter(c => !c.isOfficial).length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24">
               <div className="w-12 h-12 rounded-2xl bg-stone-100 flex items-center justify-center mb-4">
                 <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#a8a29e" strokeWidth="1.5" strokeLinecap="round">
@@ -127,12 +127,12 @@ export default function CharactersPage() {
                   <path d="M5 20c0-3.3 2.7-6 6-6s6 2.7 6 6" />
                 </svg>
               </div>
-              <p className="text-sm text-stone-400">还没有角色</p>
-              <p className="text-xs text-stone-300 mt-1">点击右上角「新建」开始创造</p>
+              <p className="text-sm text-stone-400">No characters yet</p>
+              <p className="text-xs text-stone-300 mt-1">Click "New" to create one</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
-              {userChars.map((c) => (
+              {userChars.filter(c => !c.isOfficial).map((c) => (
                 <CharacterCard key={c.id} character={c} />
               ))}
             </div>
@@ -165,29 +165,29 @@ function CharacterCard({ character: c }: { character: CharacterRow }) {
           <img src={c.avatarUrl} alt={c.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <span className="text-stone-300 text-3xl font-light select-none">{c.name.charAt(0)}</span>
+            <span className="text-stone-300 text-3xl font-light select-none">{c.name?.charAt(0) ?? "?"}</span>
           </div>
         )}
       </div>
-      <h3 className="text-sm font-medium text-neutral-800 truncate leading-snug">{c.name}</h3>
+      <h3 className="text-sm font-medium text-neutral-800 truncate leading-snug">{c.name ?? "—"}</h3>
       {desc && (
         <p className="text-[11px] text-stone-400 leading-relaxed mt-0.5 line-clamp-2">{desc}</p>
       )}
       {c.isOfficial && (
-        <span className="inline-block mt-1.5 text-[10px] text-stone-300 bg-stone-50 px-1.5 py-0.5 rounded-md">官方</span>
+        <span className="inline-block mt-1.5 text-[10px] text-stone-300 bg-stone-50 px-1.5 py-0.5 rounded-md">Official</span>
       )}
     </Link>
   );
 }
 
-// ─── Bottom Navigation ───
+// --- Bottom Navigation ---
 
 function BottomNav({ current }: { current: string }) {
   const tabs = [
-    { key: "characters", label: "角色", href: "/characters", icon: CharsIcon },
-    { key: "chat", label: "聊天", href: "/chat", icon: ChatIcon },
-    { key: "shop", label: "商店", href: "/shop", icon: ShopIcon },
-    { key: "me", label: "我的", href: "/me", icon: MeIcon },
+    { key: "characters", label: "Characters", href: "/characters", icon: CharsIcon },
+    { key: "chat", label: "Chat", href: "/chat", icon: ChatIcon },
+    { key: "shop", label: "Shop", href: "/shop", icon: ShopIcon },
+    { key: "me", label: "Me", href: "/me", icon: MeIcon },
   ] as const;
 
   return (
