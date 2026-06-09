@@ -1,10 +1,14 @@
+﻿"use client";
+
+import React from "react";
 import { ChatClient } from "./ChatClient";
 
-export default async function ChatPage({
+export default function ChatPage({
   params,
 }: {
   params: Promise<{ characterId: string }>;
 }) {
-  const { characterId } = await params;
+  // React.use(params) must be the absolute first Hook call
+  const { characterId } = React.use(params);
   return <ChatClient characterId={characterId} />;
 }

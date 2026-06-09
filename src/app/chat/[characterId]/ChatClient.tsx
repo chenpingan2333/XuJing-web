@@ -29,7 +29,7 @@ interface MemoryStatus {
 
 type StreamAction = "send" | "regenerate" | "continue" | "suggest" | null;
 
-// ─── SSE stream consumer (shared by send / regenerate / continue) ───
+// ─── SSE stream consumer ──────────────────────────────────────
 
 async function consumeSSEStream(
   res: Response,
@@ -39,7 +39,7 @@ async function consumeSSEStream(
 ) {
   const reader = res.body?.getReader();
   if (!reader) {
-    onError("Unable to read response");
+    onError("无法读取服务器响应");
     return;
   }
 
@@ -65,14 +65,14 @@ async function consumeSSEStream(
             onDone();
             return;
           } else if (evt.type === "error") {
-            onError(evt.message || "AI response error");
+            onError(evt.message || "AI 响应出错");
             return;
           }
         } catch { /* skip */ }
       }
     }
   } catch {
-    onError("Network error, please retry");
+    onError("网络连接异常，请重试");
   }
   onDone();
 }
@@ -176,8 +176,8 @@ export function ChatClient({ characterId }: { characterId: string }) {
         body: JSON.stringify({ characterId, content }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Send failed" }));
-        setMessages((prev) => prev.map((m) => (m.id === aiMsgId ? { ...m, content: err.error || "Send failed" } : m)));
+        const err = await res.json().catch(() => ({ error: "发送失败" }));
+        setMessages((prev) => prev.map((m) => (m.id === aiMsgId ? { ...m, content: err.error || "发送失败" } : m)));
         return;
       }
       let aiContent = "";
@@ -210,8 +210,8 @@ export function ChatClient({ characterId }: { characterId: string }) {
         headers: authHeaders(),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Regenerate failed" }));
-        setMessages((prev) => prev.map((m) => (m.id === targetId ? { ...m, content: err.error || "Regenerate failed" } : m)));
+        const err = await res.json().catch(() => ({ error: "重新生成失败" }));
+        setMessages((prev) => prev.map((m) => (m.id === targetId ? { ...m, content: err.error || "重新生成失败" } : m)));
         return;
       }
       let aiContent = "";
@@ -242,8 +242,8 @@ export function ChatClient({ characterId }: { characterId: string }) {
         headers: authHeaders(),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Continue failed" }));
-        setMessages((prev) => prev.map((m) => (m.id === aiMsgId ? { ...m, content: err.error || "Continue failed" } : m)));
+        const err = await res.json().catch(() => ({ error: "续写失败" }));
+        setMessages((prev) => prev.map((m) => (m.id === aiMsgId ? { ...m, content: err.error || "续写失败" } : m)));
         return;
       }
       let aiContent = "";
@@ -298,25 +298,23 @@ export function ChatClient({ characterId }: { characterId: string }) {
 
   // ──────── RENDER ────────
 
-  // Loading
   if (authLoading || fetching) {
     return (
       <div className="flex h-dvh items-center justify-center bg-stone-50">
-        <div className="text-sm text-stone-300">Loading...</div>
+        <div className="text-sm text-stone-300">加载中…</div>
       </div>
     );
   }
 
-  // Redirecting (will be handled by useEffect)
   if (!user) {
     return (
       <div className="flex h-dvh items-center justify-center bg-stone-50">
-        <div className="text-sm text-stone-300">Redirecting...</div>
+        <div className="text-sm text-stone-300">跳转中…</div>
       </div>
     );
   }
 
-  // ── API key not configured guide ──
+  // ── API 密钥未配置引导页 ──
   if (needsApiConfig) {
     return (
       <div className="flex h-dvh flex-col bg-stone-50">
@@ -329,13 +327,13 @@ export function ChatClient({ characterId }: { characterId: string }) {
             </svg>
           </div>
           <p className="text-sm text-stone-400 text-center leading-relaxed mb-8">
-            Configure an API key to start chatting with this character
+            请先配置 API 密钥以开启对话
           </p>
           <button
             onClick={() => router.push("/api-connections")}
             className="rounded-lg bg-neutral-800 px-6 py-2.5 text-xs font-medium text-stone-50 transition-colors hover:bg-neutral-700 active:scale-[0.98]"
           >
-            Configure API
+            前往配置 API
           </button>
         </div>
         <BottomNav current="chat" />
@@ -384,10 +382,10 @@ function findLastAiIndex(msgs: MessageData[]): number {
 
 function BottomNav({ current }: { current: "characters" | "chat" | "shop" | "me" }) {
   const tabs = [
-    { key: "characters", label: "Characters", href: "/characters", icon: CharactersIcon },
-    { key: "chat", label: "Chat", href: "/chat", icon: ChatIcon },
-    { key: "shop", label: "Shop", href: "/shop", icon: ShopIcon },
-    { key: "me", label: "Me", href: "/me", icon: MeIcon },
+    { key: "characters", label: "角色", href: "/characters", icon: CharactersIcon },
+    { key: "chat", label: "聊天", href: "/chat", icon: ChatIcon },
+    { key: "shop", label: "商店", href: "/shop", icon: ShopIcon },
+    { key: "me", label: "我的", href: "/me", icon: MeIcon },
   ] as const;
 
   return (

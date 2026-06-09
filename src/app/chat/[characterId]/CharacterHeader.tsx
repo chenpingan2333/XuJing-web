@@ -13,7 +13,6 @@ export function CharacterHeader({ name, avatarUrl, memoryUsed, memoryLimit }: Ch
 
   return (
     <div className="flex items-center gap-3 px-6 py-3 border-b border-stone-200 bg-stone-50">
-      {/* Avatar */}
       <div className="w-9 h-9 rounded-lg bg-stone-200 overflow-hidden flex-shrink-0">
         {safeAvatar ? (
           <img
@@ -30,14 +29,12 @@ export function CharacterHeader({ name, avatarUrl, memoryUsed, memoryLimit }: Ch
           </div>
         )}
       </div>
-
-      {/* Name + Memory */}
       <div className="flex-1 min-w-0">
         <div className="text-sm font-medium text-neutral-900 truncate">
           {safeName || "—"}
         </div>
         <div className="text-xs text-stone-400 mt-0.5">
-          Memory {memoryUsed ?? 0}/{memoryLimit ?? 100}
+          记忆 {memoryUsed ?? 0}/{memoryLimit ?? 100}
         </div>
       </div>
     </div>

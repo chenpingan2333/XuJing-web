@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 interface Message {
   id: string;
@@ -9,9 +9,7 @@ interface Message {
 
 interface MessageListProps {
   messages: Message[];
-  /** Disable all action buttons (global loading/streaming lock) */
   loading?: boolean;
-  /** Which action is currently active: "regenerate" | "continue" | "suggest" | null */
   activeAction?: string | null;
   onRegenerate?: () => void;
   onContinue?: () => void;
@@ -56,7 +54,6 @@ export function MessageList({
   );
 }
 
-/** Find the index of the last ASSISTANT message */
 function lastAiIndex(messages: Message[]): number {
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === "ASSISTANT") return i;
@@ -88,7 +85,6 @@ function MessageBubble({
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div className="flex flex-col max-w-[75%]">
-        {/* Bubble */}
         <div
           className={
             isUser
@@ -101,7 +97,6 @@ function MessageBubble({
           )}
         </div>
 
-        {/* AI action buttons — only on the last AI message */}
         {showActions && (
           <div className="flex gap-1 mt-1.5 ml-1">
             <ActionButton
@@ -111,7 +106,7 @@ function MessageBubble({
               activeAction={activeAction}
               loading={loading}
               onClick={onRegenerate}
-              char="↻"
+              char="↺"
             />
             <ActionButton
               label="再回复一句"
@@ -120,16 +115,16 @@ function MessageBubble({
               activeAction={activeAction}
               loading={loading}
               onClick={onContinue}
-              char="⏩"
+              char="→"
             />
             <ActionButton
-              label="AI灵感回复"
+              label="AI 灵感回复"
               activeLabel="生成中..."
               action="suggest"
               activeAction={activeAction}
               loading={loading}
               onClick={onSuggest}
-              char="💬"
+              char="✨"
             />
           </div>
         )}

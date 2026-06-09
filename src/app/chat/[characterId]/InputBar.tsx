@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from "react";
 
@@ -16,11 +16,9 @@ export const InputBar = forwardRef<InputBarHandle, InputBarProps>(
     const [value, setValue] = useState("");
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
-    // Expose fillText to parent
     useImperativeHandle(ref, () => ({
       fillText: (text: string) => {
         setValue(text);
-        // Focus and move cursor to end
         requestAnimationFrame(() => {
           const el = inputRef.current;
           if (el) {
@@ -31,7 +29,6 @@ export const InputBar = forwardRef<InputBarHandle, InputBarProps>(
       },
     }));
 
-    // Auto-resize textarea
     useEffect(() => {
       const el = inputRef.current;
       if (el) {
@@ -62,7 +59,7 @@ export const InputBar = forwardRef<InputBarHandle, InputBarProps>(
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="随便聊聊……"
+            placeholder="随便聊聊…"
             disabled={disabled}
             rows={1}
             className="flex-1 resize-none rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-[15px] leading-relaxed text-neutral-900 placeholder:text-stone-300 outline-none focus:border-stone-400 disabled:opacity-50 transition-colors"
