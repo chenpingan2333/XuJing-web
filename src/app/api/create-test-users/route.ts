@@ -15,7 +15,7 @@ export async function GET(_req: NextRequest) {
   for (const acct of accounts) {
     const existing = await db.select({ uid: users.uid }).from(users).where(sql`${users.email} = ${acct.email}`).limit(1);
     if (existing.length > 0) {
-      results.push(`SKIP: ${acct.email} already exists (uid=${existing[0].uid})`);
+      results.push("SKIP: " + acct.email + " (uid=" + existing[0].uid + ")");
       continue;
     }
 
@@ -30,15 +30,13 @@ export async function GET(_req: NextRequest) {
       hasPurchasedVip: false,
     } as any);
 
-    results.push(`CREATED: ${acct.email} (uid=${acct.uid}, pwd=${acct.password})`);
+    results.push("CREATED: " + acct.email + " uid=" + acct.uid);
   }
 
-  // Reset sequence
-  await db.execute(sql`SELECT setval('users_uid_seq', GREATEST(${accounts[1].uid}, (SELECT COALESCE(MAX(uid), 0) FROM users)))`);
+  await db.execute(sql`SELECT setval('users_uid_seq', GREATEST(3, (SELECT COALESCE(MAX(uid), 0) FROM users)))`);
 
-  // Verify
   const all = await db.select({ uid: users.uid, email: users.email, role: users.role }).from(users).orderBy(users.uid);
-  const summary = all.map(u => `uid=${u.uid} ${u.email} ${u.role}`).join("\n");
+  const summary = all.map(u => "uid=" + u.uid + " " + u.email + " " + u.role).join("\n");
 
   return NextResponse.json({ results, allUsers: summary });
 }
