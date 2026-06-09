@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ProviderGateway 鈥?缁熶竴 AI Provider 璺敱灞? *
  * 鑱岃矗:
  *  1. 鏍规嵁 ApiConfig.platform 璺敱鍒板搴?Provider
@@ -43,7 +43,7 @@ export class ProviderGateway {
       case "CUSTOM_OPENAI":
       case "DEEPSEEK":
       case "GROK":
-        yield* this._openaiCompatible(config.apiUrl, apiKey, config.modelId, allMessages);
+        yield* this._openaiCompatible(this._safeUrl(config.apiUrl, config.platform), apiKey, config.modelId, allMessages);
         break;
 
       case "ANTHROPIC":
@@ -58,7 +58,7 @@ export class ProviderGateway {
 
       default:
         // Fallback: treat unknown platforms as OpenAI-compatible
-        yield* this._openaiCompatible(config.apiUrl, apiKey, config.modelId, allMessages);
+        yield* this._openaiCompatible(this._safeUrl(config.apiUrl, config.platform), apiKey, config.modelId, allMessages);
     }
   }
 
@@ -85,7 +85,7 @@ export class ProviderGateway {
       ...messages,
     ];
 
-    yield* this._openaiCompatible(apiUrl, apiKey, modelId, allMessages);
+    yield* this._openaiCompatible(this._safeUrl(apiUrl, "DEEPSEEK"), apiKey, modelId, allMessages);
   }
 
   /**
@@ -190,6 +190,18 @@ export class ProviderGateway {
   }
 
   // 鈹€鈹€鈹€ OpenAI-Compatible (OpenAI / DeepSeek / Grok / Custom) 鈹€鈹€鈹€
+
+  /** 防御：若 apiUrl 不含协议头（如被误填为 API Key），自动修正为平台默认端点 */
+  private _safeUrl(baseUrl: string, platform: string): string {
+    if (/^https?:\/\//.test(baseUrl)) return baseUrl;
+    const defaults: Record<string, string> = {
+      OPENAI: "https://api.openai.com",
+      DEEPSEEK: "https://api.deepseek.com",
+      GROK: "https://api.x.ai",
+    };
+    return defaults[platform] ?? "https://api.deepseek.com";
+  }
+
   private async *_openaiCompatible(
     baseUrl: string,
     apiKey: string,
