@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useAuth } from "@/lib/use-auth";
 import { useState, useEffect, useCallback } from "react";
@@ -9,9 +9,12 @@ interface CharacterRow {
   id: string;
   name: string;
   avatarUrl?: string;
+  setting?: string;
   personality?: string;
   isOfficial: boolean;
 }
+
+const FREE_LIMIT = 12;
 
 export default function CharactersPage() {
   const { user, loading, token } = useAuth();
@@ -22,13 +25,10 @@ export default function CharactersPage() {
 
   const isVip = user?.subscription === "vip";
   const charCount = userChars.length;
-  const atLimit = !isVip && charCount >= 12;
+  const atLimit = !isVip && charCount >= FREE_LIMIT;
 
-  // Redirect unauthenticated users to login
   useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/login");
-    }
+    if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
 
   const fetchCharacters = useCallback(async () => {
@@ -48,104 +48,88 @@ export default function CharactersPage() {
 
   useEffect(() => { if (user) fetchCharacters(); }, [fetchCharacters, user]);
 
-  // Loading / redirecting
-  if (loading || !user) {
+  if (loading || !user || fetching) {
     return (
       <div className="flex h-dvh items-center justify-center bg-stone-50">
-        <div className="text-sm text-stone-300">加载中</div>
+        <span className="text-sm text-stone-300">加载中...</span>
       </div>
     );
   }
 
-  // Still fetching characters
-  if (fetching) {
-    return (
-      <div className="flex h-dvh items-center justify-center bg-stone-50">
-        <div className="text-sm text-stone-300">加载中</div>
-      </div>
-    );
-  }
-
-  // Authenticated + loaded
   return (
     <div className="flex h-dvh flex-col bg-stone-50">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 pt-12 pb-4">
-        <h1 className="text-lg font-semibold text-neutral-900">角色</h1>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/characters/new"
-            className={`rounded-xl px-4 py-2 text-xs font-medium transition-colors ${
-              atLimit
-                ? "bg-stone-100 text-stone-300 cursor-not-allowed pointer-events-none"
-                : "bg-neutral-900 text-stone-50 hover:bg-neutral-800"
-            }`}
-          >
-            新建
-          </Link>
+      <header className="shrink-0 px-6 pt-12 pb-3 flex items-end justify-between">
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight text-neutral-900">
+            叙境
+          </h1>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-[11px] text-stone-400">
+              {isVip
+                ? "已创建 " + charCount + " 个角色"
+                : charCount + " / " + FREE_LIMIT}
+            </span>
+            {atLimit && (
+              <span className="text-[10px] text-stone-300 bg-stone-100 px-1.5 py-0.5 rounded-full">
+                已满
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+        <Link
+          href={atLimit ? "#" : "/characters/new"}
+          onClick={(e) => { if (atLimit) e.preventDefault(); }}
+          className={
+            "inline-flex items-center gap-1 rounded-xl px-4 py-2 text-xs font-medium transition-colors duration-200 " +
+            (atLimit
+              ? "bg-stone-100 text-stone-300 cursor-not-allowed"
+              : "bg-neutral-900 text-stone-50 hover:bg-neutral-800 active:scale-[0.98]")
+          }
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M7 3v8M3 7h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          新建
+        </Link>
+      </header>
 
-      {/* Scrollable body */}
-      <div className="flex-1 overflow-y-auto px-6 pb-24 space-y-8">
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto px-4 pb-24">
         {official.length > 0 && (
-          <section>
-            <h2 className="text-xs font-medium text-stone-400 tracking-wide mb-3">
+          <section className="mb-8">
+            <h2 className="px-2 mb-3 text-[11px] font-medium text-stone-400 tracking-wider uppercase">
               叙境专属角色
             </h2>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
               {official.map((c) => (
-                <Link
-                  key={c.id}
-                  href={"/characters/" + c.id}
-                  className="rounded-xl border border-stone-200 bg-white p-4 hover:bg-stone-50 transition-colors"
-                >
-                  <Avatar name={c.name} url={c.avatarUrl} size="lg" />
-                  <div className="text-sm font-medium text-neutral-900 truncate mt-2">
-                    {c.name}
-                  </div>
-                  <div className="text-[11px] text-stone-400 mt-0.5">官方</div>
-                </Link>
+                <CharacterCard key={c.id} character={c} />
               ))}
             </div>
           </section>
         )}
 
         <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xs font-medium text-stone-400 tracking-wide">
-              我的角色
-            </h2>
-            <span className={`text-xs ${atLimit ? "text-red-400" : "text-stone-400"}`}>
-              {charCount}{isVip ? "" : "/12"}
-            </span>
-          </div>
-
+          <h2 className="px-2 mb-3 text-[11px] font-medium text-stone-400 tracking-wider uppercase">
+            我的角色
+          </h2>
           {userChars.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="text-sm text-stone-300">还没有角色</div>
-              <div className="text-xs text-stone-200 mt-1">
-                点击右上角「新建」来创建第一个角色
+            <div className="flex flex-col items-center justify-center py-24">
+              <div className="w-12 h-12 rounded-2xl bg-stone-100 flex items-center justify-center mb-4">
+                <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#a8a29e" strokeWidth="1.5" strokeLinecap="round">
+                  <circle cx="11" cy="8" r="4" />
+                  <path d="M5 20c0-3.3 2.7-6 6-6s6 2.7 6 6" />
+                </svg>
               </div>
+              <p className="text-sm text-stone-400">还没有角色</p>
+              <p className="text-xs text-stone-300 mt-1">
+                点击右上角「新建」开始创造
+              </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
               {userChars.map((c) => (
-                <Link
-                  key={c.id}
-                  href={"/characters/" + c.id}
-                  className="rounded-xl border border-stone-200 bg-white p-4 hover:bg-stone-50 transition-colors"
-                >
-                  <Avatar name={c.name} url={c.avatarUrl} size="lg" />
-                  <div className="text-sm font-medium text-neutral-900 truncate mt-2">
-                    {c.name}
-                  </div>
-                  {c.personality && (
-                    <div className="text-xs text-stone-400 mt-0.5 truncate">
-                      {c.personality.slice(0, 20)}
-                    </div>
-                  )}
-                </Link>
+                <CharacterCard key={c.id} character={c} />
               ))}
             </div>
           )}
@@ -157,42 +141,72 @@ export default function CharactersPage() {
   );
 }
 
-function Avatar({ name, url, size }: { name: string; url?: string; size: "sm" | "lg" }) {
-  const dims = size === "lg" ? "w-14 h-14 rounded-2xl" : "w-9 h-9 rounded-lg";
+function CharacterCard({ character: c }: { character: CharacterRow }) {
+  const desc = c.setting || c.personality || "";
   return (
-    <div className={`${dims} bg-stone-100 overflow-hidden flex-shrink-0`}>
-      {url ? (
-        <img src={url} alt={name} className="w-full h-full object-cover" />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center text-stone-400 text-lg font-medium">
-          {name.charAt(0)}
-        </div>
+    <Link
+      href={"/characters/" + c.id}
+      className="group flex flex-col rounded-2xl bg-white p-3.5 transition-all duration-200 hover:bg-stone-50/80 active:scale-[0.98]"
+    >
+      {/* Avatar */}
+      <div className="w-full aspect-square rounded-xl bg-stone-100 overflow-hidden mb-3">
+        {c.avatarUrl ? (
+          <img
+            src={c.avatarUrl}
+            alt={c.name}
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-stone-300 text-3xl font-light select-none">
+              {c.name.charAt(0)}
+            </span>
+          </div>
+        )}
+      </div>
+      {/* Name */}
+      <h3 className="text-sm font-medium text-neutral-800 truncate leading-snug">
+        {c.name}
+      </h3>
+      {/* Description */}
+      {desc && (
+        <p className="text-[11px] text-stone-400 leading-relaxed mt-0.5 line-clamp-2">
+          {desc}
+        </p>
       )}
-    </div>
+      {c.isOfficial && (
+        <span className="inline-block mt-1.5 text-[10px] text-stone-300 bg-stone-50 px-1.5 py-0.5 rounded-md">
+          官方
+        </span>
+      )}
+    </Link>
   );
 }
 
-function BottomNav({ current }: { current: "characters" | "chat" | "shop" | "me" }) {
+// ─── Bottom Navigation ───
+
+function BottomNav({ current }: { current: string }) {
   const tabs = [
-    { key: "characters", label: "角色", href: "/characters", icon: CharactersIcon },
+    { key: "characters", label: "角色", href: "/characters", icon: CharsIcon },
     { key: "chat", label: "聊天", href: "/chat", icon: ChatIcon },
     { key: "shop", label: "商店", href: "/shop", icon: ShopIcon },
     { key: "me", label: "我的", href: "/me", icon: MeIcon },
   ] as const;
 
   return (
-    <nav className="flex-shrink-0 flex items-center justify-around border-t border-stone-200 bg-stone-50 h-14">
+    <nav className="shrink-0 flex items-center justify-around border-t border-stone-100 bg-stone-50 h-14">
       {tabs.map((tab) => {
-        const isActive = tab.key === current;
+        const active = tab.key === current;
         return (
           <a
             key={tab.key}
             href={tab.href}
-            className={`flex flex-col items-center justify-center gap-0.5 w-16 h-full text-[10px] transition-colors ${
-              isActive ? "text-neutral-900" : "text-stone-300 hover:text-stone-400"
-            }`}
+            className={
+              "flex flex-col items-center justify-center gap-0.5 w-16 h-full text-[10px] transition-colors duration-200 " +
+              (active ? "text-neutral-900" : "text-stone-300 hover:text-stone-400")
+            }
           >
-            <tab.icon active={isActive} />
+            <tab.icon active={active} />
             <span>{tab.label}</span>
           </a>
         );
@@ -201,7 +215,7 @@ function BottomNav({ current }: { current: "characters" | "chat" | "shop" | "me"
   );
 }
 
-function CharactersIcon({ active }: { active: boolean }) {
+function CharsIcon({ active }: { active: boolean }) {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
       <circle cx="10" cy="7" r="3.5" stroke={active ? "#1C1C1C" : "#D6D3D1"} strokeWidth="1.5" />
