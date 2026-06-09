@@ -21,6 +21,48 @@ interface AuthState {
   loading: boolean;
 }
 
+// ─── Safe storage with memory fallback (Safari/Brave private mode) ───
+
+const memoryStore = new Map<string, string>();
+let storageAvailable: boolean | null = null;
+
+function isStorageAvailable(): boolean {
+  if (storageAvailable !== null) return storageAvailable;
+  try {
+    const key = "__storage_test__";
+    localStorage.setItem(key, "1");
+    localStorage.removeItem(key);
+    storageAvailable = true;
+  } catch {
+    storageAvailable = false;
+  }
+  return storageAvailable;
+}
+
+function safeGetItem(key: string): string | null {
+  if (typeof window === "undefined") return memoryStore.get(key) ?? null;
+  if (isStorageAvailable()) {
+    try { return localStorage.getItem(key); } catch { return memoryStore.get(key) ?? null; }
+  }
+  return memoryStore.get(key) ?? null;
+}
+
+function safeSetItem(key: string, value: string): void {
+  memoryStore.set(key, value);
+  if (typeof window === "undefined") return;
+  if (isStorageAvailable()) {
+    try { localStorage.setItem(key, value); } catch { /* memory fallback active */ }
+  }
+}
+
+function safeRemoveItem(key: string): void {
+  memoryStore.delete(key);
+  if (typeof window === "undefined") return;
+  if (isStorageAvailable()) {
+    try { localStorage.removeItem(key); } catch { /* memory fallback active */ }
+  }
+}
+
 // ─── localStorage keys ───
 
 const TOKEN_KEY = "xujing_token";
@@ -28,34 +70,24 @@ const REFRESH_KEY = "xujing_refresh";
 const USER_ID_KEY = "xujing_uid";
 
 function getStoredToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
+  return safeGetItem(TOKEN_KEY);
 }
-
 function getStoredRefresh(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(REFRESH_KEY);
+  return safeGetItem(REFRESH_KEY);
 }
-
 function getStoredUserId(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(USER_ID_KEY);
+  return safeGetItem(USER_ID_KEY);
 }
-
 function persistAuth(token: string, refreshToken: string, userId: string) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(REFRESH_KEY, refreshToken);
-  localStorage.setItem(USER_ID_KEY, userId);
+  safeSetItem(TOKEN_KEY, token);
+  safeSetItem(REFRESH_KEY, refreshToken);
+  safeSetItem(USER_ID_KEY, userId);
 }
-
 function clearAuth() {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(REFRESH_KEY);
-  localStorage.removeItem(USER_ID_KEY);
+  safeRemoveItem(TOKEN_KEY);
+  safeRemoveItem(REFRESH_KEY);
+  safeRemoveItem(USER_ID_KEY);
 }
-
 // ─── Silent refresh ───
 
 let refreshPromise: Promise<string | null> | null = null;
