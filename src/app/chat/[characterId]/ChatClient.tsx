@@ -2,9 +2,12 @@
 
 import { useAuth } from "@/lib/use-auth";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { CharacterHeader } from "./CharacterHeader";
 import { MessageList } from "./MessageList";
 import { InputBar, type InputBarHandle } from "./InputBar";
+
+// ─── Types ────────────────────────────────────────────────────
 
 interface CharacterData {
   id: string;
@@ -65,33 +68,66 @@ async function consumeSSEStream(
             onError(evt.message || "AI response error");
             return;
           }
-        } catch {
-          // skip unparseable chunks
-        }
+        } catch { /* skip */ }
       }
     }
   } catch {
     onError("Network error, please retry");
   }
-
-  // Stream ended without explicit "done" — treat as done
   onDone();
 }
 
 // ─── Main Component ───────────────────────────────────────────
 
 export function ChatClient({ characterId }: { characterId: string }) {
+  // ──────── ALL HOOKS FIRST ────────
   const { user, loading: authLoading, token } = useAuth();
+  const router = useRouter();
+  const inputBarRef = useRef<InputBarHandle>(null);
+
   const [character, setCharacter] = useState<CharacterData | null>(null);
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [memory, setMemory] = useState<MemoryStatus>({ used: 0, limit: 100 });
   const [fetching, setFetching] = useState(true);
   const [isStreaming, setIsStreaming] = useState(false);
   const [activeAction, setActiveAction] = useState<StreamAction>(null);
+  const [hasApiConfigured, setHasApiConfigured] = useState(true);
+  const [needsApiConfig, setNeedsApiConfig] = useState(false);
 
-  const inputBarRef = useRef<InputBarHandle>(null);
+  const isVip = user?.subscription === "vip";
 
-  // --- Data fetching ---
+  // ── Redirect unauthenticated users ──
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace("/login");
+    }
+  }, [authLoading, user, router]);
+
+  // ── Check API configuration ──
+  useEffect(() => {
+    if (!token || !user) return;
+    if (isVip) {
+      setHasApiConfigured(true);
+      setNeedsApiConfig(false);
+      return;
+    }
+    fetch("/api/api-configs", {
+      headers: { Authorization: "Bearer " + token },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const configs = Array.isArray(data.data) ? data.data : [];
+        const hasConfig = configs.length > 0;
+        setHasApiConfigured(hasConfig);
+        setNeedsApiConfig(!hasConfig);
+      })
+      .catch(() => {
+        setHasApiConfigured(false);
+        setNeedsApiConfig(true);
+      });
+  }, [token, user, isVip]);
+
+  // ── Fetch character + messages ──
   const fetchData = useCallback(async () => {
     if (!token) return;
     try {
@@ -106,43 +142,32 @@ export function ChatClient({ characterId }: { characterId: string }) {
         setMessages(chatData.data.messages ?? []);
         setMemory(chatData.data.memory ?? { used: 0, limit: 100 });
       }
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
     setFetching(false);
   }, [token, characterId]);
 
   useEffect(() => {
-    if (token) {
-      fetchData();
-    } else if (!authLoading) {
-      setFetching(false);
-    }
+    if (token) fetchData();
+    else if (!authLoading) setFetching(false);
   }, [token, authLoading, fetchData]);
 
-  // --- Shared auth headers helper ---
+  // ── Auth headers helper ──
   const authHeaders = useCallback(
     () => ({ "Content-Type": "application/json", Authorization: "Bearer " + token! }),
     [token],
   );
 
-  // --- handleSend (P0: regular chat) ---
+  // ── handleSend ──
   const handleSend = useCallback(async (content: string) => {
     if (!token || isStreaming) return;
     setIsStreaming(true);
     setActiveAction("send");
 
     const tempId = "temp-" + Date.now();
-    setMessages((prev) => [
-      ...prev,
-      { id: tempId, role: "USER", content, createdAt: new Date().toISOString() },
-    ]);
+    setMessages((prev) => [...prev, { id: tempId, role: "USER", content, createdAt: new Date().toISOString() }]);
 
     const aiMsgId = "ai-" + Date.now();
-    setMessages((prev) => [
-      ...prev,
-      { id: aiMsgId, role: "ASSISTANT", content: "", createdAt: new Date().toISOString() },
-    ]);
+    setMessages((prev) => [...prev, { id: aiMsgId, role: "ASSISTANT", content: "", createdAt: new Date().toISOString() }]);
 
     try {
       const res = await fetch("/api/chat", {
@@ -150,32 +175,17 @@ export function ChatClient({ characterId }: { characterId: string }) {
         headers: authHeaders(),
         body: JSON.stringify({ characterId, content }),
       });
-
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Send failed" }));
-        setMessages((prev) =>
-          prev.map((m) => (m.id === aiMsgId ? { ...m, content: err.error || "Send failed" } : m)),
-        );
+        setMessages((prev) => prev.map((m) => (m.id === aiMsgId ? { ...m, content: err.error || "Send failed" } : m)));
         return;
       }
-
       let aiContent = "";
       await consumeSSEStream(
         res,
-        (delta) => {
-          aiContent += delta;
-          setMessages((prev) =>
-            prev.map((m) => (m.id === aiMsgId ? { ...m, content: aiContent } : m)),
-          );
-        },
-        (errMsg) => {
-          setMessages((prev) =>
-            prev.map((m) => (m.id === aiMsgId ? { ...m, content: errMsg } : m)),
-          );
-        },
-        () => {
-          refreshMemory();
-        },
+        (delta) => { aiContent += delta; setMessages((prev) => prev.map((m) => (m.id === aiMsgId ? { ...m, content: aiContent } : m))); },
+        (errMsg) => { setMessages((prev) => prev.map((m) => (m.id === aiMsgId ? { ...m, content: errMsg } : m))); },
+        () => refreshMemory(),
       );
     } finally {
       setIsStreaming(false);
@@ -183,7 +193,7 @@ export function ChatClient({ characterId }: { characterId: string }) {
     }
   }, [token, characterId, isStreaming, authHeaders]);
 
-  // --- handleRegenerate ---
+  // ── handleRegenerate ──
   const handleRegenerate = useCallback(async () => {
     if (!token || isStreaming || messages.length === 0) return;
     setIsStreaming(true);
@@ -192,40 +202,23 @@ export function ChatClient({ characterId }: { characterId: string }) {
     const lastAiIdx = findLastAiIndex(messages);
     const targetId = lastAiIdx >= 0 ? messages[lastAiIdx].id : "ai-" + Date.now();
 
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id === targetId ? { ...m, content: "" } : m,
-      ),
-    );
+    setMessages((prev) => prev.map((m) => (m.id === targetId ? { ...m, content: "" } : m)));
 
     try {
       const res = await fetch("/api/chat/" + characterId + "/regenerate", {
         method: "POST",
         headers: authHeaders(),
       });
-
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Regenerate failed" }));
-        setMessages((prev) =>
-          prev.map((m) => (m.id === targetId ? { ...m, content: err.error || "Regenerate failed" } : m)),
-        );
+        setMessages((prev) => prev.map((m) => (m.id === targetId ? { ...m, content: err.error || "Regenerate failed" } : m)));
         return;
       }
-
       let aiContent = "";
       await consumeSSEStream(
         res,
-        (delta) => {
-          aiContent += delta;
-          setMessages((prev) =>
-            prev.map((m) => (m.id === targetId ? { ...m, content: aiContent } : m)),
-          );
-        },
-        (errMsg) => {
-          setMessages((prev) =>
-            prev.map((m) => (m.id === targetId ? { ...m, content: errMsg } : m)),
-          );
-        },
+        (delta) => { aiContent += delta; setMessages((prev) => prev.map((m) => (m.id === targetId ? { ...m, content: aiContent } : m))); },
+        (errMsg) => { setMessages((prev) => prev.map((m) => (m.id === targetId ? { ...m, content: errMsg } : m))); },
         () => refreshMemory(),
       );
     } finally {
@@ -234,46 +227,30 @@ export function ChatClient({ characterId }: { characterId: string }) {
     }
   }, [token, characterId, messages, isStreaming, authHeaders]);
 
-  // --- handleContinue ---
+  // ── handleContinue ──
   const handleContinue = useCallback(async () => {
     if (!token || isStreaming) return;
     setIsStreaming(true);
     setActiveAction("continue");
 
     const aiMsgId = "ai-" + Date.now();
-    setMessages((prev) => [
-      ...prev,
-      { id: aiMsgId, role: "ASSISTANT", content: "", createdAt: new Date().toISOString() },
-    ]);
+    setMessages((prev) => [...prev, { id: aiMsgId, role: "ASSISTANT", content: "", createdAt: new Date().toISOString() }]);
 
     try {
       const res = await fetch("/api/chat/" + characterId + "/continue", {
         method: "POST",
         headers: authHeaders(),
       });
-
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Continue failed" }));
-        setMessages((prev) =>
-          prev.map((m) => (m.id === aiMsgId ? { ...m, content: err.error || "Continue failed" } : m)),
-        );
+        setMessages((prev) => prev.map((m) => (m.id === aiMsgId ? { ...m, content: err.error || "Continue failed" } : m)));
         return;
       }
-
       let aiContent = "";
       await consumeSSEStream(
         res,
-        (delta) => {
-          aiContent += delta;
-          setMessages((prev) =>
-            prev.map((m) => (m.id === aiMsgId ? { ...m, content: aiContent } : m)),
-          );
-        },
-        (errMsg) => {
-          setMessages((prev) =>
-            prev.map((m) => (m.id === aiMsgId ? { ...m, content: errMsg } : m)),
-          );
-        },
+        (delta) => { aiContent += delta; setMessages((prev) => prev.map((m) => (m.id === aiMsgId ? { ...m, content: aiContent } : m))); },
+        (errMsg) => { setMessages((prev) => prev.map((m) => (m.id === aiMsgId ? { ...m, content: errMsg } : m))); },
         () => refreshMemory(),
       );
     } finally {
@@ -282,7 +259,7 @@ export function ChatClient({ characterId }: { characterId: string }) {
     }
   }, [token, characterId, isStreaming, authHeaders]);
 
-  // --- handleSuggest ---
+  // ── handleSuggest ──
   const handleSuggest = useCallback(async () => {
     if (!token || isStreaming) return;
     setIsStreaming(true);
@@ -293,22 +270,19 @@ export function ChatClient({ characterId }: { characterId: string }) {
         method: "POST",
         headers: authHeaders(),
       });
-
       if (!res.ok) return;
-
       const data = await res.json();
       if (data.success && data.data?.suggestion) {
         inputBarRef.current?.fillText?.(data.data.suggestion);
       }
-    } catch {
-      // silent fail for suggest
-    } finally {
+    } catch { /* silent */ }
+    finally {
       setIsStreaming(false);
       setActiveAction(null);
     }
   }, [token, characterId, isStreaming, authHeaders]);
 
-  // --- Refresh memory status after stream completes ---
+  // ── Refresh memory ──
   const refreshMemory = useCallback(async () => {
     if (!token) return;
     try {
@@ -319,13 +293,13 @@ export function ChatClient({ characterId }: { characterId: string }) {
       if (data.success) {
         setMemory(data.data.memory ?? { used: 0, limit: 100 });
       }
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
   }, [token, characterId]);
 
-  // --- Auth loading ---
-  if (authLoading || (fetching && !user)) {
+  // ──────── RENDER ────────
+
+  // Loading
+  if (authLoading || fetching) {
     return (
       <div className="flex h-dvh items-center justify-center bg-stone-50">
         <div className="text-sm text-stone-300">Loading...</div>
@@ -333,16 +307,43 @@ export function ChatClient({ characterId }: { characterId: string }) {
     );
   }
 
-  // --- Unauthenticated ---
+  // Redirecting (will be handled by useEffect)
   if (!user) {
     return (
       <div className="flex h-dvh items-center justify-center bg-stone-50">
-        <span className="text-sm text-stone-300">Loading...</span>
+        <div className="text-sm text-stone-300">Redirecting...</div>
       </div>
     );
   }
 
-  // --- Main chat layout ---
+  // ── API key not configured guide ──
+  if (needsApiConfig) {
+    return (
+      <div className="flex h-dvh flex-col bg-stone-50">
+        <div className="flex-1 flex flex-col items-center justify-center px-8">
+          <div className="w-12 h-12 rounded-full bg-stone-100 flex items-center justify-center mb-6">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#a8a29e" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M6 6V5a4 4 0 018 0v1" />
+              <rect x="4" y="8" width="12" height="9" rx="2" />
+              <circle cx="10" cy="12.5" r="1" />
+            </svg>
+          </div>
+          <p className="text-sm text-stone-400 text-center leading-relaxed mb-8">
+            Configure an API key to start chatting with this character
+          </p>
+          <button
+            onClick={() => router.push("/api-connections")}
+            className="rounded-lg bg-neutral-800 px-6 py-2.5 text-xs font-medium text-stone-50 transition-colors hover:bg-neutral-700 active:scale-[0.98]"
+          >
+            Configure API
+          </button>
+        </div>
+        <BottomNav current="chat" />
+      </div>
+    );
+  }
+
+  // ── Main chat layout ──
   return (
     <div className="flex flex-col h-dvh bg-stone-50">
       {character && (
@@ -370,7 +371,8 @@ export function ChatClient({ characterId }: { characterId: string }) {
   );
 }
 
-// --- Helpers ---
+// ─── Helpers ──────────────────────────────────────────────────
+
 function findLastAiIndex(msgs: MessageData[]): number {
   for (let i = msgs.length - 1; i >= 0; i--) {
     if (msgs[i].role === "ASSISTANT") return i;
@@ -378,7 +380,8 @@ function findLastAiIndex(msgs: MessageData[]): number {
   return -1;
 }
 
-// --- Bottom Navigation ---
+// ─── Bottom Navigation ────────────────────────────────────────
+
 function BottomNav({ current }: { current: "characters" | "chat" | "shop" | "me" }) {
   const tabs = [
     { key: "characters", label: "Characters", href: "/characters", icon: CharactersIcon },
@@ -408,7 +411,8 @@ function BottomNav({ current }: { current: "characters" | "chat" | "shop" | "me"
   );
 }
 
-// --- Minimal SVG icons ---
+// ─── SVG Icons ────────────────────────────────────────────────
+
 function CharactersIcon({ active }: { active: boolean }) {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
