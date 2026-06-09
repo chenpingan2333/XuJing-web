@@ -421,6 +421,7 @@ export function ChatClient({ characterId }: { characterId: string }) {
           name={character.name ?? ""}
           avatarUrl={character.avatarUrl ?? null}
           memoryUsed={memory.used}
+          memoryLimit={memory.limit}
           onMenuClick={() => setMenuOpen((p) => !p)}
         />
       )}
