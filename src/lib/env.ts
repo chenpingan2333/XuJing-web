@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 
 /**
  * 环境变量 Schema — Phase 3.6 运行时校验
@@ -15,7 +15,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(16, "JWT_SECRET must be at least 16 characters"),
 
   // ── 加密 ──
-  API_KEY_ENCRYPTION_KEY: z.string().min(16, "AES_KEY must be at least 16 characters"),
+  API_KEY_ENCRYPTION_KEY: z.string().length(64, "API_KEY_ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes)").regex(/^[0-9a-fA-F]{64}$/, "Must be a valid 64-char hex string"),
 
   // ── Redis ──
   REDIS_URL: z.string().optional(),
