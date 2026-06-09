@@ -22,7 +22,11 @@ export class MessageRepository {
   }
 
   /** 重生成：删除该角色最近的 ASSISTANT 消息 */
-  async deleteLastAssistant(characterId: string, userId: string) {
+  
+  async deleteAllByCharacter(characterId: string, userId: string) {
+    await db.delete(messages).where(and(eq(messages.characterId, characterId), eq(messages.userId, userId)));
+  }
+async deleteLastAssistant(characterId: string, userId: string) {
     const [last] = await db.select().from(messages).where(and(eq(messages.characterId, characterId), eq(messages.userId, userId), eq(messages.role, "ASSISTANT"))).orderBy(desc(messages.createdAt)).limit(1);
     if (last) {
       await db.delete(messages).where(eq(messages.id, last.id));

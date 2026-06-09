@@ -9,8 +9,6 @@
  *   ?before=msgId — 游标分页（可选）
  */
 
-// export const runtime = 'edge'; // removed for DB reliability
-
 import { jsonOk, jsonErr } from "../../_base/response";
 import { requireAuth } from "../../_base/auth";
 import { messageRepository } from "@/server/repositories/message.repository";
@@ -56,4 +54,29 @@ export async function GET(
     messages: messages.reverse(), // chronological order (oldest first)
     memory: { used: memCount, limit: memoryLimit },
   });
+}
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ characterId: string }> },
+) {
+  const auth = await requireAuth(req);
+  if (auth instanceof Response) return auth;
+
+  const { characterId } = await params;
+
+  const character = await characterRepository.findById(characterId);
+  if (!character || character.deletedAt) {
+    return jsonErr("角色不存在", 404);
+  }
+  if (!character.isOfficial && character.userId !== auth.userId) {
+    return jsonErr("无权操作", 403);
+  }
+
+  const { db } = await import("@/db");
+  const { messages } = await import("@/db/schema/messages");
+  const { and, eq } = await import("drizzle-orm");
+  await db.delete(messages).where(and(eq(messages.characterId, characterId), eq(messages.userId, auth.userId)));
+
+  return jsonOk({ deleted: true });
 }

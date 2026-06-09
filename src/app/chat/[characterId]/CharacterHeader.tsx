@@ -1,13 +1,14 @@
-﻿"use client";
+"use client";
 
 interface CharacterHeaderProps {
   name: string;
   avatarUrl?: string | null;
   memoryUsed: number;
   memoryLimit: number;
+  onMenuClick?: () => void;
 }
 
-export function CharacterHeader({ name, avatarUrl, memoryUsed, memoryLimit }: CharacterHeaderProps) {
+export function CharacterHeader({ name, avatarUrl, memoryUsed, memoryLimit, onMenuClick }: CharacterHeaderProps) {
   const safeName = name ?? "";
   const safeAvatar = avatarUrl ?? "";
 
@@ -37,6 +38,18 @@ export function CharacterHeader({ name, avatarUrl, memoryUsed, memoryLimit }: Ch
           记忆 {memoryUsed ?? 0}/{memoryLimit ?? 100}
         </div>
       </div>
+      {onMenuClick && (
+        <button
+          onClick={onMenuClick}
+          className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-600 transition-colors"
+        >
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <circle cx="9" cy="9" r="1.25" />
+            <circle cx="9" cy="3.5" r="1.25" />
+            <circle cx="9" cy="14.5" r="1.25" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }

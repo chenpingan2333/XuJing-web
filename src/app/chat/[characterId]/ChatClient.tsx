@@ -95,9 +95,20 @@ export function ChatClient({ characterId }: { characterId: string }) {
   const [hasApiConfigured, setHasApiConfigured] = useState(true);
   const [needsApiConfig, setNeedsApiConfig] = useState(false);
   const [greetingDismissed, setGreetingDismissed] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [activeModal, setActiveModal] = useState<"restart" | "stats" | "export" | null>(null);
+  const [restarting, setRestarting] = useState(false);
 
   const isVip = user?.subscription === "vip";
+
+  const stats = (() => {
+    if (!character || messages.length === 0) return null;
+    const createdAt = character.createdAt ? new Date(character.createdAt) : new Date();
+    const now = new Date();
+    const diffDays = Math.max(1, Math.ceil((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24)));
+    const totalWords = messages.reduce((sum, m) => sum + (m.content?.length ?? 0), 0);
+    return { diffDays, totalMessages: messages.length, totalWords, createdAt };
+  })();
 
   const hasGreeting = !!character?.greeting;
   const showGreeting = hasGreeting && messages.length === 0 && !greetingDismissed;
@@ -302,6 +313,42 @@ export function ChatClient({ characterId }: { characterId: string }) {
   }, [token, characterId, isStreaming, authHeaders]);
 
   // ── Refresh memory ──
+  const handleRestart = useCallback(async () => {
+    if (!token) return;
+    setRestarting(true);
+    try {
+      await fetch("/api/chat/" + characterId, {
+        method: "DELETE",
+        headers: { Authorization: "Bearer " + token },
+      });
+      setMessages([]);
+      setGreetingDismissed(false);
+      setActiveModal(null);
+    } catch { /* ignore */ }
+    setRestarting(false);
+  }, [token, characterId]);
+
+  const handleExport = useCallback((format: "txt" | "json") => {
+    if (messages.length === 0) return;
+    const charName = character?.name ?? "角色";
+    let blob: Blob;
+    if (format === "json") {
+      blob = new Blob([JSON.stringify(messages, null, 2)], { type: "application/json" });
+    } else {
+      const text = messages.map(m =>
+        (m.role === "USER" ? "User" : charName) + ": " + m.content
+      ).join("\n\n");
+      blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "与" + charName + "的聊天记录." + format;
+    a.click();
+    URL.revokeObjectURL(url);
+    setActiveModal(null);
+  }, [messages, character]);
+
   const refreshMemory = useCallback(async () => {
     if (!token) return;
     try {
@@ -314,8 +361,6 @@ export function ChatClient({ characterId }: { characterId: string }) {
       }
     } catch { /* ignore */ }
   }, [token, characterId]);
-
-  useEffect(() => { console.log("[ChatClient] state 鈫?fetching:", fetching, "char:", !!character, "msgs:", messages.length, "showGreet:", showGreeting, "dismissed:", greetingDismissed); }, [fetching, character, messages.length, showGreeting, greetingDismissed]);
 
   // ──────── RENDER ────────
 
@@ -435,6 +480,63 @@ export function ChatClient({ characterId }: { characterId: string }) {
 
       <InputBar ref={inputBarRef} onSend={handleSend} disabled={isStreaming} />
 
+      {/* ── Restart Modal ── */}
+      {activeModal === "restart" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setActiveModal(null)} />
+          <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <p className="text-sm font-medium text-neutral-900 mb-2">确定要重启该角色聊天吗？</p>
+            <p className="text-xs text-stone-400 leading-relaxed mb-6">此操作将清空本地和云端当前角色的所有消息，且无法恢复。</p>
+            <div className="flex gap-2.5">
+              <button onClick={() => setActiveModal(null)} className="flex-1 rounded-lg border border-stone-200 bg-white py-2.5 text-sm text-stone-500 hover:bg-stone-50 transition-colors">取消</button>
+              <button onClick={handleRestart} disabled={restarting} className="flex-1 rounded-lg bg-red-500 py-2.5 text-sm font-medium text-white hover:bg-red-600 disabled:opacity-50 transition-colors">{restarting ? "…" : "重启聊天"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Stats Modal ── */}
+      {activeModal === "stats" && character && stats && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setActiveModal(null)} />
+          <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <p className="text-base font-semibold text-neutral-900 text-center mb-4">{character.name}</p>
+            <div className="flex items-center justify-center gap-4 mb-5">
+              <div className="w-14 h-14 rounded-full bg-stone-200 overflow-hidden flex items-center justify-center ring-2 ring-stone-100">
+                {character.avatarUrl ? <img src={character.avatarUrl} alt="" className="w-full h-full object-cover" /> : <span className="text-stone-400 text-xl">{(character.name ?? "?").charAt(0)}</span>}
+              </div>
+              <span className="text-2xl">{String.fromCodePoint(0x1F493)}</span>
+              <div className="w-14 h-14 rounded-full bg-stone-200 overflow-hidden flex items-center justify-center ring-2 ring-stone-100">
+                {character.avatarUrl ? <img src={character.avatarUrl} alt="" className="w-full h-full object-cover" /> : <span className="text-stone-400 text-xl">{(character.name ?? "?").charAt(0)}</span>}
+              </div>
+            </div>
+            <p className="text-xs text-stone-400 text-center mb-5">
+              {stats.createdAt.toISOString().slice(0, 10)} - {new Date().toISOString().slice(0, 10)}
+            </p>
+            <div className="space-y-3 mb-6">
+              <div className="flex justify-between text-sm"><span className="text-stone-400">陪伴天数</span><span className="text-neutral-800 font-medium">{stats.diffDays} 天</span></div>
+              <div className="flex justify-between text-sm"><span className="text-stone-400">双方互发消息</span><span className="text-neutral-800 font-medium">{stats.totalMessages} 条</span></div>
+              <div className="flex justify-between text-sm"><span className="text-stone-400">聊天字数</span><span className="text-neutral-800 font-medium">{stats.totalWords} 字</span></div>
+            </div>
+            <button onClick={() => setActiveModal(null)} className="w-full rounded-lg bg-neutral-900 py-2.5 text-sm font-medium text-stone-50 hover:bg-neutral-800 transition-colors">确定</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Export Modal ── */}
+      {activeModal === "export" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setActiveModal(null)} />
+          <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <p className="text-sm font-medium text-neutral-900 mb-4">导出聊天记录</p>
+            <p className="text-xs text-stone-400 mb-5">共 {messages.length} 条消息</p>
+            <div className="flex gap-2.5">
+              <button onClick={() => handleExport("txt")} disabled={messages.length === 0} className="flex-1 rounded-lg border border-stone-200 bg-white py-2.5 text-sm text-stone-600 hover:bg-stone-50 disabled:opacity-40 transition-colors">导出为 TXT</button>
+              <button onClick={() => handleExport("json")} disabled={messages.length === 0} className="flex-1 rounded-lg bg-neutral-900 py-2.5 text-sm font-medium text-stone-50 hover:bg-neutral-800 disabled:opacity-40 transition-colors">导出为 JSON</button>
+            </div>
+          </div>
+        </div>
+      )}
       <BottomNav current="chat" />
     </div>
   );
