@@ -176,8 +176,8 @@ export function ChatClient({ characterId }: { characterId: string }) {
         console.warn('[ChatClient] Chat history API returned error or no data:', chatData);
       }
     } catch (err) {
-      console.error("[ChatClient] Failed to load chat data:", err instanceof Error ? err.message : String(err));
-      setLoadError("聊天记录加载失败，请检查网络后重试");
+
+
     }
     setFetching(false);
   }, [token, characterId]);
