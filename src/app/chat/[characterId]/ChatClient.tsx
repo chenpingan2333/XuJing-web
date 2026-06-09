@@ -80,10 +80,7 @@ async function consumeSSEStream(
 // ─── Main Component ─────────────────────────────────
 
 export function ChatClient({ characterId }: { characterId: string }) {
-  const { user, loading: authLoading, token, login } = useAuth();
-  const [email, setEmail] = useState("");
-  const [logging, setLogging] = useState(false);
-
+  const { user, loading: authLoading, token } = useAuth();
   const [character, setCharacter] = useState<CharacterData | null>(null);
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [memory, setMemory] = useState<MemoryStatus>({ used: 0, limit: 100 });
@@ -339,32 +336,14 @@ export function ChatClient({ characterId }: { characterId: string }) {
   }
 
   // --- Unauthenticated ---
-  if (!user) {
+  if (!user) useEffect(() => {
+    if (!authLoading && !user) window.location.href = "/login";
+  }, [authLoading, user]);
+
+  if (authLoading || !user) {
     return (
-      <div className="flex h-dvh flex-col items-center justify-center gap-4 px-6 bg-stone-50">
-        <div className="text-lg font-medium text-neutral-900">叙境 Xujing</div>
-        <div className="text-sm text-stone-400">AI 恋爱陪伴平台</div>
-        <div className="mt-4 w-full max-w-xs space-y-3">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="输入消息..."
-            className="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm text-neutral-900 placeholder:text-stone-300 outline-none focus:border-stone-400"
-          />
-          <button
-            onClick={async () => {
-              if (!email) return;
-              setLogging(true);
-              try { await login(email); } catch { /* ignore */ }
-              setLogging(false);
-            }}
-            disabled={logging || !email}
-            className="w-full rounded-xl bg-neutral-900 py-2.5 text-sm text-stone-50 disabled:opacity-50"
-          >
-            {logging ? "登录中..." : "登录"}
-          </button>
-        </div>
+      <div className="flex h-dvh items-center justify-center bg-stone-50">
+        <span className="text-sm text-stone-300">加载中...</span>
       </div>
     );
   }
