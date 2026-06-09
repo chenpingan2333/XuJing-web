@@ -94,14 +94,16 @@ function parseCharacterJSON(raw: unknown): ParsedCharacter | null {
 // ─── Page ─────────────────────────────────────────────────────
 
 export default function NewCharacterPage() {
+  // ═══════════════════════════════════════════════════════════
+  // SECTION 1: ALL HOOKS — absolute top, no if/return/switch
+  // ═══════════════════════════════════════════════════════════
+
   const { user, loading, token } = useAuth();
   const router = useRouter();
 
-  // ── Drag-and-drop refs ──
   const dropRef = useRef<HTMLDivElement>(null);
   const dragCounter = useRef(0);
 
-  // ── Form state ──
   const [name, setName] = useState("");
   const [greeting, setGreeting] = useState("");
   const [setting, setSetting] = useState("");
@@ -113,11 +115,9 @@ export default function NewCharacterPage() {
   const [mainPrompt, setMainPrompt] = useState("");
   const [postHistoryInstructions, setPostHistoryInstructions] = useState("");
 
-  // ── Avatar state ──
   const [avatarPreview, setAvatarPreview] = useState("");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
-  // ── UI state ──
   const [saving, setSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [error, setError] = useState("");
@@ -126,19 +126,15 @@ export default function NewCharacterPage() {
   const [dragOver, setDragOver] = useState(false);
   const [jsonParsedName, setJsonParsedName] = useState("");
 
-  // ── Form refs (used inside stable callbacks to avoid stale closures) ──
   const formRef = useRef({
     name, greeting, setting, personality, scenario,
     dialogueExamples, nickname, groupGreeting, mainPrompt, postHistoryInstructions,
   });
 
-  // ── Auth guard (useEffect, not conditional return) ──
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
 
-
-  // ── Avatar handler (stable, empty deps) ──
   const handleAvatarSelect = useCallback((file: File) => {
     setError("");
     if (file.size > MAX_IMAGE_BYTES) { setError("头像文件不能超过 10MB"); return; }
@@ -149,7 +145,6 @@ export default function NewCharacterPage() {
     reader.readAsDataURL(file);
   }, []);
 
-  // ── Drag-and-drop handlers (stable, all use refs to avoid form-state deps) ──
   const handleDragEnter = useCallback((e: DragEvent) => {
     e.preventDefault(); e.stopPropagation();
     dragCounter.current += 1;
@@ -187,7 +182,6 @@ export default function NewCharacterPage() {
         const data = parseCharacterJSON(parsed);
         if (!data) { setError("无法识别此 JSON 的角色卡格式"); return; }
 
-        // Read current form values from ref (stable, no state deps)
         const f = formRef.current;
 
         if (data.name && !f.name) setName(data.name.slice(0, LIMITS.name));
@@ -211,46 +205,36 @@ export default function NewCharacterPage() {
     }
 
     setError("仅支持 .json 角色卡或 jpg/png/webp 头像");
-  }, [handleAvatarSelect]); // Only depends on the stable handleAvatarSelect
-  // ── Derived values (hooks) ──
+  }, [handleAvatarSelect]);
+
   const canSave = useMemo(
     () => name.trim().length > 0 && setting.trim().length > 0 && greeting.trim().length > 0,
     [name, setting, greeting]
   );
 
-  // ── Sync form ref (non-hook, runs every render) ──
-  formRef.current = {
-    name, greeting, setting, personality, scenario,
-    dialogueExamples, nickname, groupGreeting, mainPrompt, postHistoryInstructions,
-  };
-
-  // ── Save ref (used inside stable handleSave callback) ──
-  const saveRef = useRef({ canSave, token, avatarFile,
+  const saveRef = useRef({
+    canSave, token, avatarFile,
     name, greeting, setting, personality, scenario,
     dialogueExamples, nickname, groupGreeting, mainPrompt, postHistoryInstructions,
   });
-  saveRef.current = { canSave, token, avatarFile,
-    name, greeting, setting, personality, scenario,
-    dialogueExamples, nickname, groupGreeting, mainPrompt, postHistoryInstructions,
-  };
 
-  // ── Save ──
   const handleSave = useCallback(async () => {
-    if (!canSave) return;
+    const s = saveRef.current;
+    if (!s.canSave) return;
     setSaving(true);
     setError("");
 
     try {
       let avatarUrl = "";
 
-      if (avatarFile) {
+      if (s.avatarFile) {
         setAvatarUploading(true);
         try {
           const fd = new FormData();
-          fd.append("file", avatarFile);
+          fd.append("file", s.avatarFile);
           const uploadRes = await fetch("/api/upload", {
             method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
+            headers: { Authorization: "Bearer " + s.token },
             body: fd,
           });
           const uploadData = await uploadRes.json();
@@ -262,17 +246,17 @@ export default function NewCharacterPage() {
 
       const res = await fetch("/api/characters", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + s.token },
         body: JSON.stringify({
-          name, setting, greeting,
+          name: s.name, setting: s.setting, greeting: s.greeting,
           avatar_url: avatarUrl || undefined,
-          personality: personality || undefined,
-          scenario: scenario || undefined,
-          dialogue_examples: dialogueExamples || undefined,
-          nickname: nickname || undefined,
-          group_greeting: groupGreeting || undefined,
-          main_prompt: mainPrompt || undefined,
-          post_history_instructions: postHistoryInstructions || undefined,
+          personality: s.personality || undefined,
+          scenario: s.scenario || undefined,
+          dialogue_examples: s.dialogueExamples || undefined,
+          nickname: s.nickname || undefined,
+          group_greeting: s.groupGreeting || undefined,
+          main_prompt: s.mainPrompt || undefined,
+          post_history_instructions: s.postHistoryInstructions || undefined,
         }),
       });
 
@@ -281,10 +265,28 @@ export default function NewCharacterPage() {
       router.push("/characters");
     } catch { setError("网络异常，请检查连接后重试"); }
     finally { setSaving(false); }
-  }, [router]); // stable: router is stable from useRouter
+  }, [router]);
 
-  // ── Loading state ──
-  if (loading || !user) {
+  // ═══════════════════════════════════════════════════════════
+  // SECTION 2: REF SYNC — non-hook, after all hooks
+  // ═══════════════════════════════════════════════════════════
+
+  formRef.current = {
+    name, greeting, setting, personality, scenario,
+    dialogueExamples, nickname, groupGreeting, mainPrompt, postHistoryInstructions,
+  };
+
+  saveRef.current = {
+    canSave, token, avatarFile,
+    name, greeting, setting, personality, scenario,
+    dialogueExamples, nickname, groupGreeting, mainPrompt, postHistoryInstructions,
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // SECTION 3: EARLY RETURNS — after all hooks
+  // ═══════════════════════════════════════════════════════════
+
+  if (loading) {
     return (
       <div className="flex h-dvh items-center justify-center bg-stone-50">
         <span className="text-xs text-stone-300">—</span>
@@ -292,7 +294,18 @@ export default function NewCharacterPage() {
     );
   }
 
-  // ── Render ──
+  if (!user) {
+    return (
+      <div className="flex h-dvh items-center justify-center bg-stone-50">
+        <span className="text-xs text-stone-300">请先登录</span>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SECTION 4: RENDER
+  // ═══════════════════════════════════════════════════════════
+
   return (
     <div
       ref={dropRef}
