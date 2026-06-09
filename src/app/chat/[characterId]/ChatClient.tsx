@@ -151,9 +151,12 @@ export function ChatClient({ characterId }: { characterId: string }) {
 
       const chatRes = await fetch("/api/chat/" + characterId, { headers });
       const chatData = await chatRes.json();
+      console.log('[ChatClient] GET /api/chat/', characterId, '→ messages:', chatData.data?.messages?.length ?? 0, 'success:', chatData.success);
       if (chatData.success && chatData.data) {
         setMessages(chatData.data.messages ?? []);
         setMemory(chatData.data.memory ?? { used: 0, limit: 100 });
+      } else {
+        console.warn('[ChatClient] Chat history API returned error or no data:', chatData);
       }
     } catch (err) {
       console.error("[ChatClient] Failed to load chat data:", err instanceof Error ? err.message : String(err));
