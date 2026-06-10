@@ -1,6 +1,30 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
-/* Safe Area CSS variables — mobile adaptation */
+/* ═══ 夸克/旧浏览器 oklch 降级：强制 neutral + stone 用 hex ═══ */
+@theme {
+  --color-neutral-50: #fafafa;
+  --color-neutral-100: #f5f5f5;
+  --color-neutral-200: #e5e5e5;
+  --color-neutral-300: #d4d4d4;
+  --color-neutral-400: #a3a3a3;
+  --color-neutral-500: #737373;
+  --color-neutral-600: #525252;
+  --color-neutral-700: #404040;
+  --color-neutral-800: #262626;
+  --color-neutral-900: #171717;
+  --color-stone-50: #fafaf9;
+  --color-stone-100: #f5f5f4;
+  --color-stone-200: #e7e5e4;
+  --color-stone-300: #d6d3d1;
+  --color-stone-400: #a8a29e;
+  --color-stone-500: #78716c;
+  --color-stone-600: #57534e;
+  --color-stone-700: #44403c;
+  --color-stone-800: #292524;
+  --color-stone-900: #1c1917;
+}
+
+/* Safe Area CSS variables 鈥?mobile adaptation */
 :root {
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -10,7 +34,7 @@
   --header-height: 56px;
 }
 
-/* Base: html/body clean — overflow containment on #app-shell only (Safari iOS fix) */
+/* Base: html/body clean 鈥?overflow containment on #app-shell only (Safari iOS fix) */
 html, body {
   height: 100%;
 }
@@ -29,8 +53,8 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* ─── dvh fallback for older mobile browsers (Quark, vivo, etc.) ─── */
-/* Tailwind h-dvh only emits 100dvh; browsers without dvh support get 0 height → white screen */
+/* 鈹€鈹€鈹€ dvh fallback for older mobile browsers (Quark, vivo, etc.) 鈹€鈹€鈹€ */
+/* Tailwind h-dvh only emits 100dvh; browsers without dvh support get 0 height 鈫?white screen */
 .h-dvh { height: 100vh; }
 .max-h-\[85dvh\] { max-height: 85vh; }
 .h-\[calc\(100dvh-56px\)\] { height: calc(100vh - 56px); }
