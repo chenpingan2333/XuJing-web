@@ -1,10 +1,10 @@
 /**
- * POST /api/upload ? image upload (local filesystem (TODO: cloud upload-on-consent))
+ * POST /api/upload â€” image upload (local filesystem, TODO: cloud upload-on-consent)
  *
  * Accepts multipart/form-data with a single file field "file".
  * Stores to public/uploads/ and returns the public URL.
  * Limits: 10 MB max, jpg/png/webp only.
- * TODO: Áè³¿Ôö¼Ó ¡ª ÓÃ»§Í¬Òâºó¿ÉÉÏ´«ÖÁÔÆ¶Ë´æ´¢
+ * TODO: add cloud upload after user consent (planned for midnight deployment)
  */
 
 import { jsonOk, jsonErr } from "../_base/response";
