@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AES-256-CBC 加解密 — Web Crypto API 实现
  *
  * 跨 Node.js / Edge / Browser 运行时兼容。
@@ -34,7 +34,7 @@ function getKeyBytes(): Uint8Array {
 
 /** 将原始密钥导入为 Web Crypto CryptoKey */
 async function importKey(rawKey: Uint8Array): Promise<CryptoKey> {
-  return crypto.subtle.importKey("raw", rawKey, { name: ALGORITHM }, false, ["encrypt", "decrypt"]);
+  return crypto.subtle.importKey("raw", rawKey.buffer, { name: ALGORITHM }, false, ["encrypt", "decrypt"]);
 }
 
 /** 加密 API Key → "ivHex:dataHex" */
