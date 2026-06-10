@@ -1,14 +1,13 @@
-/**
- * JWT — Phase 4.1 Auth Core Skeleton
+﻿/**
+ * JWT 鈥?Phase 4.1 Auth Core Skeleton
  *
- * 使用 jose 库（已安装）实现 HS256 JWT。
- * - createAccessToken: 签发 15min Access Token
- * - verifyAccessToken: 验证并解析 payload
+ * 浣跨敤 jose 搴擄紙宸插畨瑁咃級瀹炵幇 HS256 JWT銆? * - createAccessToken: 绛惧彂 15min Access Token
+ * - verifyAccessToken: 楠岃瘉骞惰В鏋?payload
  */
 
 import { SignJWT, jwtVerify } from "jose";
 
-const JWT_TTL_SEC = 900; // 15 minutes
+const JWT_TTL_SEC = 86400; // 24 hours — 聊天场景需要长会话
 const JWT_ALG = "HS256";
 
 export interface JwtPayload {
@@ -24,8 +23,7 @@ function getSecret(): Uint8Array {
 }
 
 /**
- * 签发 Access Token。TTL = 15 分钟。
- */
+ * 绛惧彂 Access Token銆俆TL = 15 鍒嗛挓銆? */
 export async function createAccessToken(user: {
   id: string;
   role: string;
@@ -43,9 +41,7 @@ export async function createAccessToken(user: {
 }
 
 /**
- * 验证并解析 Access Token。
- * 成功返回 payload，失败返回 null（不抛异常）。
- */
+ * 楠岃瘉骞惰В鏋?Access Token銆? * 鎴愬姛杩斿洖 payload锛屽け璐ヨ繑鍥?null锛堜笉鎶涘紓甯革級銆? */
 export async function verifyAccessToken(
   token: string
 ): Promise<JwtPayload | null> {
@@ -63,3 +59,4 @@ export async function verifyAccessToken(
     return null;
   }
 }
+
