@@ -2,13 +2,13 @@
 set -e
 cd ~/XuJing-web
 git pull
-npm install
+pnpm install
 mkdir -p public/uploads
 rm -rf .next
 set -a
 source .env.production
 set +a
-npm run build
+pnpm run build
 pkill -f "server.js" 2>/dev/null || true
 sleep 1
 cp -r public .next/standalone/
