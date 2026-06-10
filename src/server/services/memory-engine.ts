@@ -9,6 +9,8 @@ import { messageRepository } from "../repositories/message.repository";
 import { memoryRepository } from "../repositories/memory.repository";
 import { userRepository } from "../repositories/user.repository";
 import type { ChatMessage } from "./provider-gateway";
+import { decryptApiKey } from "./crypto";
+import type { ApiConfig } from "@/db/schema/api-configs";
 
 // ─── System Prompt ──────────────────────────────────
 
@@ -150,12 +152,17 @@ export class MemoryEngine {
         .map((m) => `${m.role === "USER" ? "用户" : "AI"}: ${m.content}`)
         .join("\n");
 
-      // 3. 获取 API 配置（优先用户配置，fallback 到平台模型）
-      const apiUrl = process.env.PLATFORM_API_URL ?? "https://api.deepseek.com";
-      const apiKey = process.env.PLATFORM_API_KEY ?? "";
-      if (!apiKey) return; // 无可用 API Key，静默跳过
+      // 3. 获取 API 配置（优先平台模型，fallback 到用户自备 Key）
+      let apiUrl = process.env.PLATFORM_API_URL ?? "https://api.deepseek.com";
+      let apiKey = process.env.PLATFORM_API_KEY ?? "";
+      let modelId = process.env.PLATFORM_MODEL_ID ?? "deepseek-chat";
 
-      const modelId = process.env.PLATFORM_MODEL_ID ?? "deepseek-chat";
+      if (!apiKey && fallbackConfig) {
+        apiKey = await decryptApiKey(fallbackConfig.apiKeyEncrypted);
+        apiUrl = fallbackConfig.apiUrl;
+        modelId = fallbackConfig.modelId;
+      }
+      if (!apiKey) return; // 无可用 API Key，静默跳过
 
       // 4. 调用大模型（非流式，15s 超时，低成本模型）
       const extractionMessages: ChatMessage[] = [

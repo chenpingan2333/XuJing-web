@@ -164,7 +164,7 @@ export class ChatService {
             });
           }
           yield { type: "done" };
-          memoryEngine.extractAndPersist(characterId, userId).catch(() => {});
+          memoryEngine.extractAndPersist(characterId, userId, 20, config ?? undefined).catch(() => {});
         } else if (event.type === "error") {
           yield event;
         }

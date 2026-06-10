@@ -23,6 +23,14 @@ interface MessageData {
   createdAt: string;
 }
 
+interface MemoryData {
+  id: string;
+  content: string;
+  category: "FACT" | "PREFERENCE" | "EVENT";
+  importance: number;
+  createdAt: string;
+}
+
 interface MemoryStatus {
   used: number;
   limit: number;
@@ -95,8 +103,10 @@ export function ChatClient({ characterId }: { characterId: string }) {
   const [hasApiConfigured, setHasApiConfigured] = useState(true);
   const [needsApiConfig, setNeedsApiConfig] = useState(false);
   const [greetingDismissed, setGreetingDismissed] = useState(false);
+  const [memories, setMemories] = useState<MemoryData[]>([]);
+  const [fetchingMemories, setFetchingMemories] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [activeModal, setActiveModal] = useState<"restart" | "stats" | "export" | null>(null);
+  const [activeModal, setActiveModal] = useState<"restart" | "stats" | "export" | "memories" | null>(null);
   const [restarting, setRestarting] = useState(false);
 
   const isVip = user?.subscription === "vip";
@@ -408,7 +418,57 @@ export function ChatClient({ characterId }: { characterId: string }) {
             前往配置 API
           </button>
         </div>
-        <BottomNav current="chat" />
+  
+      {/* ── Memories Modal ── */}
+      {activeModal === "memories" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setActiveModal(null)} />
+          <div className="relative z-10 w-full max-w-sm max-h-[70vh] rounded-2xl bg-white shadow-xl flex flex-col">
+            <div className="p-5 border-b border-stone-100">
+              <p className="text-base font-semibold text-neutral-900">角色记忆</p>
+              <p className="text-xs text-stone-400 mt-1">{memories.length} 条记忆 · 容量 {memory.limit} 条</p>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {fetchingMemories ? (
+                <div className="text-center py-10 text-sm text-stone-300">加载中…</div>
+              ) : memories.length === 0 ? (
+                <div className="text-center py-10">
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-stone-100 flex items-center justify-center">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#a8a29e" strokeWidth="1.5" strokeLinecap="round"><path d="M10 5v5M10 13h.01"/><circle cx="10" cy="10" r="8"/></svg>
+                  </div>
+                  <p className="text-sm text-stone-300">暂无记忆</p>
+                  <p className="text-xs text-stone-300 mt-1">多聊几轮后，角色会记住关于你的事情</p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {memories.map((mem) => (
+                    <div key={mem.id} className="rounded-xl border border-stone-100 bg-stone-50/50 p-3">
+                      <div className="flex items-start gap-2.5">
+                        <span className="mt-0.5 shrink-0 text-sm">
+                          {mem.category === "FACT" ? String.fromCodePoint(0x1F4CB) : mem.category === "PREFERENCE" ? String.fromCodePoint(0x2764) : String.fromCodePoint(0x1F4C5)}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-neutral-800 leading-relaxed">{mem.content}</p>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <span className="text-[10px] text-stone-400">{mem.category === "FACT" ? "事实" : mem.category === "PREFERENCE" ? "偏好" : "事件"}</span>
+                            <div className="flex-1 h-1 bg-stone-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-amber-400 rounded-full" style={{ width: (mem.importance * 100) + "%" }} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="p-3 border-t border-stone-100">
+              <button onClick={() => setActiveModal(null)} className="w-full rounded-lg bg-neutral-900 py-2.5 text-sm font-medium text-stone-50 hover:bg-neutral-800 transition-colors">关闭</button>
+            </div>
+          </div>
+        </div>
+      )}
+      <BottomNav current="chat" />
       </div>
     );
   }
@@ -438,6 +498,10 @@ export function ChatClient({ characterId }: { characterId: string }) {
             <button onClick={() => { setMenuOpen(false); setActiveModal("stats"); }} className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 transition-colors flex items-center gap-2.5">
               <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="1.5" y="10" width="3" height="3.5" rx="0.5"/><rect x="6" y="6.5" width="3" height="7" rx="0.5"/><rect x="10.5" y="3" width="3" height="10.5" rx="0.5"/></svg>
               统计
+            </button>
+            <button onClick={async () => { setMenuOpen(false); setActiveModal("memories"); setFetchingMemories(true); try { const r = await fetch("/api/chat/" + characterId + "/memories", { headers: { Authorization: "Bearer " + token! } }); const d = await r.json(); if (d.success) setMemories(d.data ?? []); } catch {} setFetchingMemories(false); }} className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 transition-colors flex items-center gap-2.5">
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M7.5 2v3M10.5 5l-3 3-3-3"/><rect x="2" y="6" width="11" height="7" rx="1"/></svg>
+              角色记忆
             </button>
             <button onClick={() => { setMenuOpen(false); setActiveModal("export"); }} className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 transition-colors flex items-center gap-2.5">
               <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M7.5 1.5v9M4.5 7l3 3.5 3-3.5"/><path d="M2.5 12v1a1 1 0 001 1h8a1 1 0 001-1v-1"/></svg>
