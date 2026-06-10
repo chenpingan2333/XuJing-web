@@ -1,18 +1,22 @@
-ï»¿/**
- * POST /api/upload â€” image upload (Vercel Blob)
+/**
+ * POST /api/upload ? image upload (local filesystem (TODO: cloud upload-on-consent))
  *
  * Accepts multipart/form-data with a single file field "file".
- * Stores to Vercel Blob and returns the public URL.
+ * Stores to public/uploads/ and returns the public URL.
  * Limits: 10 MB max, jpg/png/webp only.
+ * TODO: Áè³¿Ôö¼Ó ¡ª ÓÃ»§Í¬Òâºó¿ÉÉÏ´«ÖÁÔÆ¶Ë´æ´¢
  */
 
 import { jsonOk, jsonErr } from "../_base/response";
 import { requireAuth } from "../_base/auth";
 import { rateLimit } from "../_base/rate-limit";
-import { put } from "@vercel/blob";
+import { writeFile, mkdir } from "node:fs/promises";
+import path from "node:path";
+import crypto from "node:crypto";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 
 export async function POST(req: Request) {
   const auth = await requireAuth(req);
@@ -45,14 +49,16 @@ export async function POST(req: Request) {
   }
 
   try {
-    const blob = await put(file.name, file, {
-      access: "public",
-      contentType: file.type,
-    });
+    await mkdir(UPLOAD_DIR, { recursive: true });
 
-    return jsonOk({ url: blob.url }, 201);
+    const ext = path.extname(file.name) || ".png";
+    const filename = crypto.randomUUID() + ext;
+    const buffer = Buffer.from(await file.arrayBuffer());
+    await writeFile(path.join(UPLOAD_DIR, filename), buffer);
+
+    return jsonOk({ url: "/uploads/" + filename }, 201);
   } catch (err) {
-    console.error("[upload] Vercel Blob upload failed:", err instanceof Error ? err.message : String(err));
-    return jsonErr("Upload failed. Ensure BLOB_READ_WRITE_TOKEN is configured.", 500);
+    console.error("[upload] Local upload failed:", err instanceof Error ? err.message : String(err));
+    return jsonErr("Upload failed. Please try again.", 500);
   }
 }
