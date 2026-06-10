@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Safe Area CSS 变量 — 移动端适配 */
+/* Safe Area CSS variables — mobile adaptation */
 :root {
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -10,11 +10,9 @@
   --header-height: 56px;
 }
 
-/* 修复 100vh 移动端溢出 */
+/* Base: html/body clean — overflow containment on #app-shell only (Safari iOS fix) */
 html, body {
-  height: 100vh;
-  height: 100dvh;
-  overflow: hidden;
+  height: 100%;
 }
 
 body {
@@ -22,7 +20,14 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-
+/* App shell: mobile-safe viewport containment */
+#app-shell {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
 
 /* ─── dvh fallback for older mobile browsers (Quark, vivo, etc.) ─── */
 /* Tailwind h-dvh only emits 100dvh; browsers without dvh support get 0 height → white screen */

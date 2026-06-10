@@ -1,7 +1,7 @@
 [production]
 > 0.2% in CN
-last 2 years
-Chrome >= 80
+last 3 years
+Chrome >= 70
 Safari >= 12
 iOS >= 12
 Android >= 6
