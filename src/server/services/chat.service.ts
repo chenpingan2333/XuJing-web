@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ChatService — Phase 7.2 Character Integration
  *
  * 职责: 消息发送、重新生成、继续回复、建议回复。
@@ -15,7 +15,7 @@ import { providerGateway, type ChatEvent } from "./provider-gateway";
 import { memoryEngine, memoryRetriever } from "./memory-engine";
 import type { ApiConfig } from "@/db/schema/api-configs";
 
-const DEFAULT_SYSTEM_PROMPT = "你是一个AI角色，请根据以下设定与用户进行自然对话。保持角色一致性，不要跳出角色设定。回复应该自然、生动，符合角色性格。";
+const DEFAULT_SYSTEM_PROMPT = "你必须完全沉浸式扮演【角色设定】中描述的角色。你的回复格式：用括号描述动作、神态、场景变化（如"（轻轻放下茶杯，目光转向窗外）"），然后输出对话。必须始终保持角色性格、语气和说话风格一致。绝不跳出角色，绝不以"作为AI"或第三人称评价自己。回复应当自然、生动、有细节，像真实的人在说话。";
 
 // Token-aware context budget: ~6400 chars ≈ 3200 tokens ≈ 80% of 4K context window
 const MAX_CONTEXT_CHARS = 6400;
@@ -96,6 +96,7 @@ export class ChatService {
         });
         // Also pre-seed greeting in LLM context
         chatMessages.push({ role: "assistant" as const, content: firstGreeting });
+
       }
     }
 
