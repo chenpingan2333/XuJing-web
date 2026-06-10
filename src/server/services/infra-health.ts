@@ -1,4 +1,4 @@
-import { neon } from "@neondatabase/serverless";
+import postgres from "postgres";
 import { getRedis } from "@/server/redis/client";
 import { getEnv } from "@/lib/env";
 
@@ -11,8 +11,8 @@ export interface InfraStatus {
 }
 
 /**
- * Phase 5 — Infra Health Check (Vercel Serverless)
- * 启动前校验 DB + Redis + ENV 全链路连通性。
+ * Infra Health Check — 校验 DB + Redis + ENV 全链路连通性。
+ * 使用标准 postgres 驱动替代 neon()，兼容本地 PostgreSQL。
  */
 export async function checkInfra(): Promise<InfraStatus> {
   const result: InfraStatus = {
@@ -31,7 +31,7 @@ export async function checkInfra(): Promise<InfraStatus> {
     return result;
   }
 
-  // 2. PostgreSQL (Neon HTTP)
+  // 2. PostgreSQL
   const dbUrl = process.env.DATABASE_URL;
   if (!dbUrl) {
     result.error = "DATABASE_URL missing";
@@ -39,15 +39,16 @@ export async function checkInfra(): Promise<InfraStatus> {
   }
 
   try {
-    const sql = neon(dbUrl);
+    const sql = postgres(dbUrl, { connect_timeout: 5, max: 1 });
     await sql`SELECT 1`;
+    await sql.end();
     result.postgres = true;
   } catch (e) {
     result.error = "PG: " + ((e as Error).message);
     return result;
   }
 
-  // 3. Redis (统一抽象层)
+  // 3. Redis
   try {
     const redis = getRedis();
     const pong = await redis.ping();
