@@ -1,22 +1,20 @@
-/**
- * DB Connection Lifecycle — Phase 5 (Vercel Serverless)
+﻿/**
+ * DB Connection Lifecycle — Node.js Server (Tencent Cloud)
  *
- * 切换到 @neondatabase/serverless + drizzle-orm/neon-http，
- * 兼容 Vercel serverless（无持久 TCP）和本地开发。
+ * 使用 postgres.js 驱动 + drizzle-orm/postgres-js，
+ * 兼容标准 PostgreSQL TCP 连接（运行时 Node.js）。
  */
 
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
-import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import * as schema from "./schema";
 
-type DbType = NeonHttpDatabase<typeof schema>;
-
-// ─── globalThis guard: 防 HMR 重复 ───
+// ─── globalThis guard: 防止 HMR 重复 ───
 const GLOBAL_KEY = "__xujing_db_singleton__";
 
 interface DbStore {
-  db: DbType;
+  db: ReturnType<typeof drizzle<typeof schema>>;
+  sql: ReturnType<typeof postgres>;
 }
 
 function getOrCreate(): DbStore {
@@ -26,10 +24,10 @@ function getOrCreate(): DbStore {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL environment variable is not set");
 
-  const sql = neon(url);
+  const sql = postgres(url);
   const db = drizzle({ client: sql, schema });
 
-  const store: DbStore = { db };
+  const store: DbStore = { db, sql };
   (globalThis as Record<string, unknown>)[GLOBAL_KEY] = store;
   return store;
 }
@@ -38,7 +36,7 @@ function getOrCreate(): DbStore {
  * Lazy singleton Proxy。
  * import 不触发连接，首次属性访问时才建连。
  */
-export const db: DbType = new Proxy({} as DbType, {
+export const db = new Proxy({} as ReturnType<typeof drizzle<typeof schema>>, {
   get(_target, prop: string | symbol) {
     const store = getOrCreate();
     const value = (store.db as unknown as Record<string | symbol, unknown>)[prop];
@@ -47,6 +45,6 @@ export const db: DbType = new Proxy({} as DbType, {
     }
     return value;
   },
-}) as DbType;
+}) as ReturnType<typeof drizzle<typeof schema>>;
 
 export { schema };
