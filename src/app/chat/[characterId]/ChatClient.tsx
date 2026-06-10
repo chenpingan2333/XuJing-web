@@ -418,57 +418,7 @@ export function ChatClient({ characterId }: { characterId: string }) {
             前往配置 API
           </button>
         </div>
-  
-      {/* ── Memories Modal ── */}
-      {activeModal === "memories" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setActiveModal(null)} />
-          <div className="relative z-10 w-full max-w-sm max-h-[70vh] rounded-2xl bg-white shadow-xl flex flex-col">
-            <div className="p-5 border-b border-stone-100">
-              <p className="text-base font-semibold text-neutral-900">角色记忆</p>
-              <p className="text-xs text-stone-400 mt-1">{memories.length} 条记忆 · 容量 {memory.limit} 条</p>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4">
-              {fetchingMemories ? (
-                <div className="text-center py-10 text-sm text-stone-300">加载中…</div>
-              ) : memories.length === 0 ? (
-                <div className="text-center py-10">
-                  <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-stone-100 flex items-center justify-center">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#a8a29e" strokeWidth="1.5" strokeLinecap="round"><path d="M10 5v5M10 13h.01"/><circle cx="10" cy="10" r="8"/></svg>
-                  </div>
-                  <p className="text-sm text-stone-300">暂无记忆</p>
-                  <p className="text-xs text-stone-300 mt-1">多聊几轮后，角色会记住关于你的事情</p>
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {memories.map((mem) => (
-                    <div key={mem.id} className="rounded-xl border border-stone-100 bg-stone-50/50 p-3">
-                      <div className="flex items-start gap-2.5">
-                        <span className="mt-0.5 shrink-0 text-sm">
-                          {mem.category === "FACT" ? String.fromCodePoint(0x1F4CB) : mem.category === "PREFERENCE" ? String.fromCodePoint(0x2764) : String.fromCodePoint(0x1F4C5)}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-neutral-800 leading-relaxed">{mem.content}</p>
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <span className="text-[10px] text-stone-400">{mem.category === "FACT" ? "事实" : mem.category === "PREFERENCE" ? "偏好" : "事件"}</span>
-                            <div className="flex-1 h-1 bg-stone-100 rounded-full overflow-hidden">
-                              <div className="h-full bg-amber-400 rounded-full" style={{ width: (mem.importance * 100) + "%" }} />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="p-3 border-t border-stone-100">
-              <button onClick={() => setActiveModal(null)} className="w-full rounded-lg bg-neutral-900 py-2.5 text-sm font-medium text-stone-50 hover:bg-neutral-800 transition-colors">关闭</button>
-            </div>
-          </div>
-        </div>
-      )}
-      <BottomNav current="chat" />
+        <BottomNav current="chat" />
       </div>
     );
   }
@@ -625,6 +575,53 @@ export function ChatClient({ characterId }: { characterId: string }) {
             <div className="flex gap-2.5">
               <button onClick={() => handleExport("txt")} disabled={messages.length === 0} className="flex-1 rounded-lg border border-stone-200 bg-white py-2.5 text-sm text-stone-600 hover:bg-stone-50 disabled:opacity-40 transition-colors">导出为 TXT</button>
               <button onClick={() => handleExport("json")} disabled={messages.length === 0} className="flex-1 rounded-lg bg-neutral-900 py-2.5 text-sm font-medium text-stone-50 hover:bg-neutral-800 disabled:opacity-40 transition-colors">导出为 JSON</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Memories Modal ── */}
+      {activeModal === "memories" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setActiveModal(null)} />
+          <div className="relative z-10 w-full max-w-sm max-h-[70vh] rounded-2xl bg-white shadow-xl flex flex-col">
+            <div className="p-5 border-b border-stone-100">
+              <p className="text-base font-semibold text-neutral-900">角色记忆</p>
+              <p className="text-xs text-stone-400 mt-1">{memories.length} 条记忆 · 容量 {memory.limit} 条</p>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {fetchingMemories ? (
+                <div className="text-center py-10 text-sm text-stone-300">加载中…</div>
+              ) : memories.length === 0 ? (
+                <div className="text-center py-10">
+                  <p className="text-sm text-stone-300">暂无记忆</p>
+                  <p className="text-xs text-stone-300 mt-1">多聊几轮后，角色会记住关于你的事情</p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {memories.map((mem) => (
+                    <div key={mem.id} className="rounded-xl border border-stone-100 bg-stone-50/50 p-3">
+                      <div className="flex items-start gap-2.5">
+                        <span className="mt-0.5 shrink-0 text-sm">
+                          {mem.category === "FACT" ? "📋" : mem.category === "PREFERENCE" ? "❤️" : "📅"}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-neutral-800 leading-relaxed">{mem.content}</p>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <span className="text-[10px] text-stone-400">{mem.category === "FACT" ? "事实" : mem.category === "PREFERENCE" ? "偏好" : "事件"}</span>
+                            <div className="flex-1 h-1 bg-stone-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-amber-400 rounded-full" style={{ width: (mem.importance * 100) + "%" }} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="p-3 border-t border-stone-100">
+              <button onClick={() => setActiveModal(null)} className="w-full rounded-lg bg-neutral-900 py-2.5 text-sm font-medium text-stone-50 hover:bg-neutral-800 transition-colors">关闭</button>
             </div>
           </div>
         </div>
