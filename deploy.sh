@@ -17,13 +17,11 @@ pnpm run build
 pkill -f "server.js" 2>/dev/null || true
 sleep 1
 cp -r public .next/standalone/
-rm -rf .next/standalone/public/uploads
 mkdir -p .next/standalone/public/uploads
 if [ -d "$UPLOAD_BACKUP/uploads" ] && [ "$(ls -A $UPLOAD_BACKUP/uploads 2>/dev/null)" ]; then
   cp -r "$UPLOAD_BACKUP/uploads/"* .next/standalone/public/uploads/ 2>/dev/null || true
 fi
 rm -rf "$UPLOAD_BACKUP"
-ln -sfn $(pwd)/public/uploads .next/standalone/public/uploads
 cp -r .next/static .next/standalone/.next/static
 cp .env.production .next/standalone/
 HOSTNAME=0.0.0.0 PORT=3003 nohup node .next/standalone/server.js > /tmp/xujing.log 2>&1 &
