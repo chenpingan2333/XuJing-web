@@ -15,21 +15,15 @@ import { providerGateway, type ChatEvent } from "./provider-gateway";
 import { memoryEngine, memoryRetriever } from "./memory-engine";
 import type { ApiConfig } from "@/db/schema/api-configs";
 
-const DEFAULT_SYSTEM_PROMPT = `你必须完全沉浸式扮演下方所有设定中描述的角色。核心规则：
+const DEFAULT_SYSTEM_PROMPT = `你是一个正在与角色对话的用户。你必须完全沉浸式扮演这个角色，遵守以下核心规则：
 
-1. 身份认同：你就是这个角色本人，拥有角色设定中的身份、背景、经历。不许以旁观者或AI身份发言。
-
-2. 性格一致：严格遵循性格特点中的描述，说话方式、情绪反应、价值观都要符合角色性格。
-
-3. 情景代入：你正处于当前情景中，所有回复都要基于这个场景，自然地感知和回应环境。
-
-4. 回复格式：用括号描述动作、神态、心理活动和场景细节（如「轻轻放下茶杯，目光转向窗外」），然后输出对话。动作描写要生动、符合角色习惯。
-
-5. 对话风格：参考对话示例中的语言风格，保持一致用词和句式。有昵称时会自然使用昵称。
-
-6. 禁止事项：绝不跳出角色扮演、绝不评价自己是AI、绝不拒绝合理互动、绝不以第三人称描述自己。
-
-7. 细节优先：回复要自然、有生活气息，加入符合角色身份的小动作、环境互动、情绪细节。`;
+1. 身份认同：你就是这个角色本人，拥有角色设定中的身份、背景和经历。绝不允许以旁观者或AI身份发言，也绝不允许评价"作为一个AI"。
+2. 性格一致：严格遵循性格描述中的特点，你的说话方式、情绪反应、价值观都要贴合角色性格。
+3. 情景代入：你正处于设定的场景中，所有回复都要基于这个场景，自然地感知和回应环境。
+4. 回复格式：用圆括号描述动作、神态、心理活动和场景细节（如"（轻轻放下茶杯，目光转向窗外）"），然后输出对话。动作描写要生动、符合角色习惯。每一条回复都应该有动作描写，不能只有干巴巴的对话。
+5. 对话风格：参考对话示例中的语言风格，保持一致的用词和句式。有昵称时自然使用昵称称呼用户。
+6. 禁止事项：绝不跳出角色扮演、绝不评价自己是AI、绝不拒绝合理互动、绝不以第三人称描述自己、绝不使用markdown或列表格式回复。
+7. 细节优先：回复要自然、有生活气息，加入符合角色身份的小动作、环境互动、情绪细节。让用户感觉在和一个真实的人对话，而不是一个聊天机器人。`;
 
 // Token-aware context budget: ~6400 chars ≈ 3200 tokens ≈ 80% of 4K context window
 const MAX_CONTEXT_CHARS = 6400;
@@ -49,6 +43,7 @@ export class ChatService {
       return;
     }
 
+    let greetingYielded = false;
     const user = await userRepository.findById(userId);
     if (!user) {
       yield { type: "error", message: "用户不存在" };
@@ -96,11 +91,13 @@ export class ChatService {
       content: m.content,
     }));
 
-    // P2: Greeting injection — only when conversation is empty
+    // P3: Greeting injection with SSE push — only when conversation is empty
     if (historyMessages.length === 0 && character.greeting) {
       const greetingParts = character.greeting.split("<START>");
       const firstGreeting = greetingParts[0]?.trim();
       if (firstGreeting) {
+        // P3: Push greeting to frontend as SSE delta before LLM response
+        yield { type: "delta", content: firstGreeting };
         // Persist greeting as first assistant message in DB (H4)
         await messageRepository.create({
           characterId,
@@ -366,8 +363,21 @@ export class ChatService {
 
     // 1. System Prompt (base)
     // 2. Main Prompt (with {{original}} resolution)
-    const mainPrompt = character.mainPrompt ?? DEFAULT_SYSTEM_PROMPT;
-    parts.push(mainPrompt.replace("{{original}}", DEFAULT_SYSTEM_PROMPT));
+        const hasMainPrompt = !!character.mainPrompt;
+    let mainPrompt = character.mainPrompt;
+    if (!mainPrompt) {
+      // Dynamic prompt generation for custom characters without mainPrompt
+      const parts: string[] = [DEFAULT_SYSTEM_PROMPT];
+      if (character.personality) {
+        parts.push("\n【你必须严格按以下性格特点扮演】\n" + character.personality);
+      }
+      if (character.setting) {
+        parts.push("\n【角色设定背景】\n" + character.setting);
+      }
+      parts.push("\n\n按照以上设定沉浸式扮演。用括号描述动作和神态细节，保持角色一致性，让对话自然有生活气息。");
+      mainPrompt = parts.join("\n");
+    }
+    parts.push(mainPrompt.replace("{{original}}", hasMainPrompt ? DEFAULT_SYSTEM_PROMPT : mainPrompt));
 
     // 3. Character Setting
     if (character.setting) {

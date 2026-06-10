@@ -4,6 +4,11 @@ cd ~/XuJing-web
 git pull
 pnpm install
 mkdir -p public/uploads
+# Backup uploaded avatars before clearing .next
+UPLOAD_BACKUP=$(mktemp -d)
+if [ -d ".next/standalone/public/uploads" ] && [ "$(ls -A .next/standalone/public/uploads 2>/dev/null)" ]; then
+  cp -r .next/standalone/public/uploads "$UPLOAD_BACKUP/" 2>/dev/null || true
+fi
 rm -rf .next
 set -a
 source .env.production
@@ -13,6 +18,11 @@ pkill -f "server.js" 2>/dev/null || true
 sleep 1
 cp -r public .next/standalone/
 rm -rf .next/standalone/public/uploads
+mkdir -p .next/standalone/public/uploads
+if [ -d "$UPLOAD_BACKUP/uploads" ] && [ "$(ls -A $UPLOAD_BACKUP/uploads 2>/dev/null)" ]; then
+  cp -r "$UPLOAD_BACKUP/uploads/"* .next/standalone/public/uploads/ 2>/dev/null || true
+fi
+rm -rf "$UPLOAD_BACKUP"
 ln -sfn $(pwd)/public/uploads .next/standalone/public/uploads
 cp -r .next/static .next/standalone/.next/static
 cp .env.production .next/standalone/

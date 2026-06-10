@@ -163,7 +163,10 @@ export class MemoryEngine {
         apiUrl = fallbackConfig.apiUrl;
         modelId = fallbackConfig.modelId;
       }
-      if (!apiKey) return; // 无可用 API Key，静默跳过
+      if (!apiKey) {
+        console.warn("[memory-engine] No API key available for memory extraction. Set PLATFORM_API_KEY or provide user API config.");
+        return;
+      }; // 无可用 API Key，静默跳过
 
       // 4. 调用大模型（非流式，15s 超时，低成本模型）
       const extractionMessages: ChatMessage[] = [
@@ -215,8 +218,8 @@ export class MemoryEngine {
           referenceIds: [],
         });
       }
-    } catch {
-      // 静默失败：记忆提取失败不阻塞任何流程
+    } catch (err) {
+      console.error("[memory-engine] extractAndPersist failed:", err instanceof Error ? err.message : String(err));
     }
   }
 

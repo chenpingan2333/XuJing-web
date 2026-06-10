@@ -16,7 +16,14 @@ import crypto from "node:crypto";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
+// Standalone mode: store in .next/standalone/public/uploads so static serving works
+// Fallback to public/uploads for dev mode
+const UPLOAD_DIR = (() => {
+  const standalonePath = path.join(process.cwd(), ".next", "standalone", "public", "uploads");
+  try { require("fs").mkdirSync(standalonePath, { recursive: true }); return standalonePath; } catch {}
+  const devPath = path.join(process.cwd(), "public", "uploads");
+  return devPath;
+})();
 
 export async function POST(req: Request) {
   const auth = await requireAuth(req);
