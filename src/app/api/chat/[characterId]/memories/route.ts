@@ -29,9 +29,9 @@ export async function GET(
   const memories = await memoryRepository.findByCharacter(characterId, auth.userId, 200);
 
   // Sort by importance desc
-  memories.sort((a, b) => Number(b.importance ?? 0) - Number(a.importance ?? 0));
+  const sorted = [...memories].sort((a, b) => Number(b.importance ?? 0) - Number(a.importance ?? 0));
 
-  return jsonOk(memories.map((m) => ({
+  return jsonOk(sorted.map((m) => ({
     id: m.id,
     content: m.content,
     category: m.category,
