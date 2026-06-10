@@ -2,10 +2,12 @@ FROM node:18 AS builder
 
 WORKDIR /app
 
+# 换国内 npm 镜像源加速
+RUN npm config set registry https://registry.npmmirror.com
+
 COPY package.json ./
 RUN npm install
 
-# 显式安装 @tailwindcss/oxide 的 Linux x64 原生二进制
 RUN npm install @tailwindcss/oxide-linux-x64-gnu
 
 COPY . .
