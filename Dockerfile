@@ -1,7 +1,7 @@
 # ============================================================
 # Stage 1: 依赖安装 & 构建
 # ============================================================
-FROM node:18-alpine AS builder
+FROM node:18-slim AS builder
 
 # 安装 pnpm
 RUN corepack enable && corepack prepare pnpm@9 --activate
@@ -17,15 +17,14 @@ RUN pnpm install --frozen-lockfile
 # 复制源码
 COPY . .
 
-# 构建（跳过 drizzle-kit migrate，数据库迁移在容器启动时执行）
-# Next.js standalone 模式会将运行时必需文件提取到 .next/standalone/
+# 构建
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npx next build
 
 # ============================================================
 # Stage 2: 生产运行镜像
 # ============================================================
-FROM node:18-alpine AS runner
+FROM node:18-slim AS runner
 
 RUN corepack enable && corepack prepare pnpm@9 --activate
 
@@ -37,7 +36,6 @@ WORKDIR /app
 
 # 从构建阶段复制 standalone 输出
 COPY --from=builder /app/.next/standalone ./
-# 复制静态资源（standalone 不会自动包含 public 和 .next/static）
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/static ./.next/static
 
@@ -45,7 +43,6 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 
-# 切换到非 root 用户
 USER nextjs
 
 EXPOSE 3000
