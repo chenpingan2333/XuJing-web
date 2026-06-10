@@ -34,7 +34,7 @@ function getKeyBytes(): Uint8Array {
 
 /** 将原始密钥导入为 Web Crypto CryptoKey */
 async function importKey(rawKey: Uint8Array): Promise<CryptoKey> {
-  return crypto.subtle.importKey("raw", rawKey.buffer, { name: ALGORITHM }, false, ["encrypt", "decrypt"]);
+  return (crypto.subtle as any).importKey("raw", rawKey, { name: ALGORITHM }, false, ["encrypt", "decrypt"]);
 }
 
 /** 加密 API Key → "ivHex:dataHex" */
@@ -45,7 +45,7 @@ export async function encryptApiKey(plaintext: string): Promise<string> {
   globalThis.crypto.getRandomValues(iv);
 
   const encoded = new TextEncoder().encode(plaintext);
-  const encrypted = await crypto.subtle.encrypt({ name: ALGORITHM, iv }, key, encoded);
+  const encrypted = await (crypto.subtle as any).encrypt({ name: ALGORITHM, iv }, key, encoded);
 
   return `${bytesToHex(iv)}:${bytesToHex(new Uint8Array(encrypted))}`;
 }
@@ -60,6 +60,6 @@ export async function decryptApiKey(encrypted: string): Promise<string> {
   const iv = hexToBytes(ivHex);
   const data = hexToBytes(dataHex);
 
-  const decrypted = await crypto.subtle.decrypt({ name: ALGORITHM, iv }, key, data);
+  const decrypted = await (crypto.subtle as any).decrypt({ name: ALGORITHM, iv }, key, data);
   return new TextDecoder().decode(decrypted);
 }
