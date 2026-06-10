@@ -15,15 +15,34 @@ import { providerGateway, type ChatEvent } from "./provider-gateway";
 import { memoryEngine, memoryRetriever } from "./memory-engine";
 import type { ApiConfig } from "@/db/schema/api-configs";
 
-const DEFAULT_SYSTEM_PROMPT = `你是一个正在与角色对话的用户。你必须完全沉浸式扮演这个角色，遵守以下核心规则：
+const DEFAULT_SYSTEM_PROMPT = `你现在正在严格扮演用户提供的角色卡中的角色，绝对不允许OOC（Out of Character）。
 
-1. 身份认同：你就是这个角色本人，拥有角色设定中的身份、背景和经历。绝不允许以旁观者或AI身份发言，也绝不允许评价"作为一个AI"。
-2. 性格一致：严格遵循性格描述中的特点，你的说话方式、情绪反应、价值观都要贴合角色性格。
-3. 情景代入：你正处于设定的场景中，所有回复都要基于这个场景，自然地感知和回应环境。
-4. 回复格式：用圆括号描述动作、神态、心理活动和场景细节（如"（轻轻放下茶杯，目光转向窗外）"），然后输出对话。动作描写要生动、符合角色习惯。每一条回复都应该有动作描写，不能只有干巴巴的对话。
-5. 对话风格：参考对话示例中的语言风格，保持一致的用词和句式。有昵称时自然使用昵称称呼用户。
-6. 禁止事项：绝不跳出角色扮演、绝不评价自己是AI、绝不拒绝合理互动、绝不以第三人称描述自己、绝不使用markdown或列表格式回复。
-7. 细节优先：回复要自然、有生活气息，加入符合角色身份的小动作、环境互动、情绪细节。让用户感觉在和一个真实的人对话，而不是一个聊天机器人。`;
+【最高优先级规则 - 不可违背】
+- 你必须100%忠实于角色卡中的所有设定，包括 name、setting、personality、scenario、dialogueExamples、说话风格、回复长度要求等全部内容。
+- 必须完全保持角色的性格特征、情绪逻辑、行为习惯、价值观和与用户的关系。
+- 严格模仿 dialogueExamples 中的语气、句式、口癖和长度。
+- 永远不要打破角色沉浸，不要出现任何"作为AI""我其实是""让我想想"等元话语，也不要主动寻求用户引导。
+
+【自然真实回复要求】
+- 你的回复必须像一个真正的活人，而不是生硬的模板或表演。
+- 语言要自然流畅、口语化，符合真实人类的说话习惯，可以有适当的停顿、情绪细节和动作描写。
+- 即使严格遵守设定，也要让每句话都感觉自然真实、有血有肉。
+- 严格控制回复长度，不要过长或过于文学化。
+- 在角色逻辑内自然回应用户，即使面对不符合设定的输入，也要用角色自己的性格和方式处理，而不是直接服从或跳出角色。
+
+【角色沉浸强化】
+- 始终以角色的第一人称视角思考和回复。
+- 每条回复都必须体现角色的性格特征、习惯动作和情绪细节。
+- 对话示例（dialogueExamples）是你的回复范本，必须高度模仿其语气、句式和长度。
+- 如果用户输入与设定冲突，你要用角色本身的逻辑自然应对，而不是直接服从用户或跳出角色。
+
+【禁止事项】
+- 禁止出现任何"作为AI""我其实是""让我想想"等元话语。
+- 禁止主动询问用户"要不要这样""我这样演对吗"等。
+- 禁止输出过长、过于文学化或与角色卡风格不符的内容。
+- 禁止遗忘或弱化角色核心设定（尤其是性格、关系、说话方式）。
+
+现在，请以最高 fidelity 严格扮演角色卡中的角色，直接开始回复，不要添加任何额外说明。`;
 
 // Token-aware context budget: ~6400 chars ≈ 3200 tokens ≈ 80% of 4K context window
 const MAX_CONTEXT_CHARS = 6400;
@@ -80,6 +99,10 @@ export class ChatService {
       scenario: character.scenario,
       dialogueExamples: character.dialogueExamples as string | null,
       nickname: character.nickname,
+      
+      name: character.name,
+      greeting: character.greeting,
+      extraFields: character.extraFields as Record<string, unknown> | null,
       postHistoryInstructions: character.postHistoryInstructions,
     }, user.personaSetting ?? undefined);
 
@@ -227,6 +250,10 @@ export class ChatService {
       scenario: character.scenario,
       dialogueExamples: character.dialogueExamples as string | null,
       nickname: character.nickname,
+      
+      name: character.name,
+      greeting: character.greeting,
+      extraFields: character.extraFields as Record<string, unknown> | null,
       postHistoryInstructions: character.postHistoryInstructions,
     }, user?.personaSetting ?? undefined);
 
@@ -306,6 +333,10 @@ export class ChatService {
       scenario: character.scenario,
       dialogueExamples: character.dialogueExamples as string | null,
       nickname: character.nickname,
+      
+      name: character.name,
+      greeting: character.greeting,
+      extraFields: character.extraFields as Record<string, unknown> | null,
       postHistoryInstructions: character.postHistoryInstructions,
     }, user?.personaSetting ?? undefined);
 
@@ -356,6 +387,9 @@ export class ChatService {
       dialogueExamples?: string | null;
       nickname?: string | null;
       postHistoryInstructions?: string | null;
+      name?: string | null;
+      greeting?: string | null;
+      extraFields?: Record<string, unknown> | null;
     },
     personaSetting?: string
   ): string {
@@ -367,15 +401,31 @@ export class ChatService {
     let mainPrompt = character.mainPrompt;
     if (!mainPrompt) {
       // Dynamic prompt generation for custom characters without mainPrompt
-      const parts: string[] = [DEFAULT_SYSTEM_PROMPT];
+      // Assembles all available character dimensions into a coherent system prompt
+      const dynParts: string[] = [DEFAULT_SYSTEM_PROMPT];
+      if (character.name) {
+        dynParts.push("\n你的角色名是：" + character.name);
+      }
       if (character.personality) {
-        parts.push("\n【你必须严格按以下性格特点扮演】\n" + character.personality);
+        dynParts.push("\n【性格特点 - 必须严格遵循】\n" + character.personality);
       }
       if (character.setting) {
-        parts.push("\n【角色设定背景】\n" + character.setting);
+        dynParts.push("\n【世界观与背景设定】\n" + character.setting);
       }
-      parts.push("\n\n按照以上设定沉浸式扮演。用括号描述动作和神态细节，保持角色一致性，让对话自然有生活气息。");
-      mainPrompt = parts.join("\n");
+      if (character.scenario) {
+        dynParts.push("\n【当前情景】\n" + character.scenario);
+      }
+      if (character.dialogueExamples) {
+        dynParts.push("\n【对话示例 - 你的回复范本，必须高度模仿语气、句式和长度】\n" + character.dialogueExamples);
+      }
+      if (character.nickname) {
+        dynParts.push("\n【昵称】用户可能会称呼你为：" + character.nickname);
+      }
+      if (character.greeting) {
+        dynParts.push("\n【你的开场白风格参考】\n" + character.greeting.split("<START>")[0]?.trim());
+      }
+      dynParts.push("\n\n严格按照以上所有设定沉浸式扮演。用括号描述动作和神态细节，保持角色一致性，让对话自然有生活气息。每一条回复都必须是角色本人的第一人称发言，绝不跳出角色。");
+      mainPrompt = dynParts.join("\n");
     }
     parts.push(mainPrompt.replace("{{original}}", hasMainPrompt ? DEFAULT_SYSTEM_PROMPT : mainPrompt));
 
@@ -409,7 +459,18 @@ export class ChatService {
       parts.push("\n[系统指令：你正在与以下用户对话：" + personaSetting + "]");
     }
 
-    // 8. Post History Instructions (with {{original}} resolution)
+    // 8. Extra Fields (custom character dimensions)
+    if (character.extraFields && typeof character.extraFields === "object" && Object.keys(character.extraFields).length > 0) {
+      const extraStr = Object.entries(character.extraFields)
+        .filter(([, v]) => v != null)
+        .map(([k, v]) => k + ": " + String(v))
+        .join("\n");
+      if (extraStr) {
+        parts.push("\n【额外设定】\n" + extraStr);
+      }
+    }
+
+    // 9. Post History Instructions (with {{original}} resolution)
     if (character.postHistoryInstructions) {
       parts.push("\n" + character.postHistoryInstructions.replace("{{original}}", DEFAULT_SYSTEM_PROMPT));
     }
