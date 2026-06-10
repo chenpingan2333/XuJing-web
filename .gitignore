@@ -43,7 +43,6 @@ _dev_output.txt
 curl_output.txt
 
 # npm (using pnpm)
-package-lock.json
 
 # misc
 vfy_p6.js
