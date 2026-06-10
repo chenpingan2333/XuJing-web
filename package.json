@@ -1,4 +1,4 @@
-﻿{
+{
     "name": "xujing",
     "version": "0.1.0",
     "private": true,
@@ -30,6 +30,7 @@
         "zod": "^3.24.0"
     },
     "devDependencies": {
+        "@csstools/postcss-oklab-function": "^5.0.4",
         "@playwright/test": "^1.60.0",
         "@tailwindcss/postcss": "^4.0.0",
         "@types/node": "^22.0.0",
@@ -42,4 +43,3 @@
         "typescript": "^5.7.0"
     }
 }
-

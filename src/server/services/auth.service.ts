@@ -22,6 +22,9 @@ import {
 } from "../auth/redis-session";
 import { Resend } from "resend";
 import { userRepository } from "../repositories/user.repository";
+import { db } from "@/db";
+import { characters } from "@/db/schema/characters";
+import { eq, and, isNull } from "drizzle-orm";
 import { getEnv } from "@/lib/env";
 
 const BCRYPT_ROUNDS = 12;
@@ -117,6 +120,11 @@ export async function registerWithCode(
   });
 
   console.log("[auth:register] User created:", normalized, "| id:", newUser.id);
+
+  // 异步派发官方角色，不阻塞注册响应
+  assignOfficialCharacters(newUser.id).catch((e) =>
+    console.error("[auth:register] Failed to assign official characters:", e)
+  );
 
   return { message: "注册成功，请使用新密码登录" };
 }
@@ -273,6 +281,42 @@ async function hashToken(token: string): Promise<string> {
 
 
 /**
+ * 新用户注册后异步复制所有官方角色模板，绑定到新用户。
+ */
+async function assignOfficialCharacters(userId: string): Promise<void> {
+  const templates = await db
+    .select()
+    .from(characters)
+    .where(and(eq(characters.isOfficial, true), isNull(characters.userId)));
+
+  if (templates.length === 0) {
+    console.log("[auth:register] No official character templates found");
+    return;
+  }
+
+  for (const t of templates) {
+    await db.insert(characters).values({
+      userId,
+      name: t.name,
+      avatarUrl: t.avatarUrl,
+      setting: t.setting,
+      greeting: t.greeting,
+      personality: t.personality,
+      scenario: t.scenario,
+      dialogueExamples: t.dialogueExamples,
+      nickname: t.nickname,
+      groupGreeting: t.groupGreeting,
+      mainPrompt: t.mainPrompt,
+      postHistoryInstructions: t.postHistoryInstructions,
+      isOfficial: false,
+      version: 1,
+    });
+  }
+
+  console.log("[auth:register] Assigned", templates.length, "official characters to user", userId);
+}
+
+/**
  * 新用户注册后自动注入两个官方角色。
  * 从 src/server/data/official-characters.json 读取角色模板，
  * 绑定到新用户的 userId 并写入 characters 表。
@@ -289,3 +333,4 @@ export const authService = {
   refreshAccessToken,
   logout,
 };
+

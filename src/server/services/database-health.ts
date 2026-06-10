@@ -1,7 +1,7 @@
-/**
- * 叙境（Xujing）Database Health Check
+﻿/**
+ * 鍙欏锛圶ujing锛塂atabase Health Check
  *
- * 检查：连接、Schema 存在、Migration 同步
+ * 妫€鏌ワ細杩炴帴銆丼chema 瀛樺湪銆丮igration 鍚屾
  */
 
 import { db } from "@/db";
@@ -24,11 +24,10 @@ export async function checkDatabaseHealth(): Promise<HealthStatus> {
   };
 
   try {
-    // 1. 连接检查
-    await db.execute(sql`SELECT 1`);
+    // 1. 杩炴帴妫€鏌?    await db.execute(sql`SELECT 1`);
     status.connected = true;
 
-    // 2. Schema 存在检查 — 枚举所有预期表
+    // 2. Schema 瀛樺湪妫€鏌?鈥?鏋氫妇鎵€鏈夐鏈熻〃
     const expectedTables = [
       "users",
       "characters",
@@ -45,7 +44,7 @@ export async function checkDatabaseHealth(): Promise<HealthStatus> {
       sql`SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public'`
     );
 
-    const existingTables = result.rows.map((r) => r.tablename) as string[];
+    const existingTables = result.map((r) => r.tablename) as string[];
     status.tables = existingTables;
 
     const missing = expectedTables.filter((t) => !existingTables.includes(t));
@@ -54,12 +53,11 @@ export async function checkDatabaseHealth(): Promise<HealthStatus> {
       status.error = `Missing tables: ${missing.join(", ")}`;
     }
 
-    // 3. Migration 同步检查 — drizzle __drizzle_migrations 表
-    try {
+    // 3. Migration 鍚屾妫€鏌?鈥?drizzle __drizzle_migrations 琛?    try {
       const migrationResult = await db.execute<{ count: string }>(
         sql`SELECT COUNT(*) as count FROM __drizzle_migrations`
       );
-      status.migrationSynced = Number(migrationResult.rows[0]?.count ?? 0) > 0;
+      status.migrationSynced = Number(migrationResult[0]?.count ?? 0) > 0;
     } catch {
       status.migrationSynced = false;
       status.error = (status.error ?? "") + " Migration table not found.";
