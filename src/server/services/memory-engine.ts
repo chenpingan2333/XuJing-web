@@ -134,6 +134,7 @@ export class MemoryEngine {
     characterId: string,
     userId: string,
     messageCount = 20,
+    fallbackConfig?: ApiConfig | null,
   ): Promise<void> {
     try {
       // 1. 获取最近消息
