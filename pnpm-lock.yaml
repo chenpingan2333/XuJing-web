@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@neondatabase/serverless':
-        specifier: ^1.1.0
-        version: 1.1.0
       '@upstash/redis':
         specifier: ^1.38.0
         version: 1.38.0
@@ -22,7 +19,7 @@ importers:
         version: 3.0.3
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.2(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.0)(postgres@3.4.9)
+        version: 0.45.2(@upstash/redis@1.38.0)(postgres@3.4.9)
       ioredis:
         specifier: ^5.11.1
         version: 5.11.1
@@ -48,6 +45,9 @@ importers:
         specifier: ^3.24.0
         version: 3.24.0
     devDependencies:
+      '@csstools/postcss-oklab-function':
+        specifier: ^5.0.4
+        version: 5.0.4(postcss@8.5.15)
       '@playwright/test':
         specifier: ^1.60.0
         version: 1.60.0
@@ -1043,10 +1043,6 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
-
-  '@neondatabase/serverless@1.1.0':
-    resolution: {integrity: sha512-r3ZZhRjEcfEdKIZnoB1RusNgvHuaBRqfCzV4Gi+5A9yUX0S4HTws/ASWqt13wL4y4I+0rqsWGdA2w7EQXHi3+Q==}
-    engines: {node: '>=19.0.0'}
 
   '@next/env@15.5.19':
     resolution: {integrity: sha512-sWWluFvcv5v3Fxznmf2ZfjyoVQt/64oCnYqS90inQWGzMPK1VjvekPiz3OPHKmFT30EnHrjlbyaHLt3M0vWabw==}
@@ -2587,8 +2583,6 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.4.14
 
-  '@neondatabase/serverless@1.1.0': {}
-
   '@next/env@15.5.19': {}
 
   '@next/swc-darwin-arm64@15.5.19':
@@ -2788,9 +2782,8 @@ snapshots:
       esbuild: 0.25.4
       tsx: 4.22.4
 
-  drizzle-orm@0.45.2(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.0)(postgres@3.4.9):
+  drizzle-orm@0.45.2(@upstash/redis@1.38.0)(postgres@3.4.9):
     optionalDependencies:
-      '@neondatabase/serverless': 1.1.0
       '@upstash/redis': 1.38.0
       postgres: 3.4.9
 
