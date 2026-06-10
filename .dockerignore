@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.env
+.env.local
+.env.*.local
+*.md
+!README.md
+tests
+playwright.config.ts
+pnpm-workspace.yaml
+tsconfig.tsbuildinfo
+_next

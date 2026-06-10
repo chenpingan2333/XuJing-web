@@ -1,51 +1,20 @@
+version: "3.8"
+
 services:
-  postgres:
-    image: postgres:16
-    container_name: xujing-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: xujing_dev
+  xujing:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: xujing
     ports:
-      - "5432:5432"
-    volumes:
-      # ÎïÀí³Ö¾Ã»¯£º°ó¶¨ËŞÖ÷»ú D:\XuJing User data µ½ÈİÆ÷Êı¾İÄ¿Â¼
-      # Windows »·¾³±ØĞëÊ¹ÓÃÕıĞ±¸Ü + Ë«ÒıºÅ°ü¹ü£¨Â·¾¶º¬¿Õ¸ñ£©
-      - "D:/XuJing User data:/var/lib/postgresql/data"
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+      - "3000:3000"
+    env_file:
+      - .env.production
+    restart: always
+    # å¥åº·æ£€æŸ¥
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-
-  redis:
-    image: redis:7
-    container_name: xujing-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes
-    volumes:
-      - redisdata:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: xujing-pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@xujing.local
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - "5050:80"
-    depends_on:
-      - postgres
-
-volumes:
-  redisdata:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s

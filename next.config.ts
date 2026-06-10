@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Docker standalone 模式：仅打包生产必需文件，输出到 .next/standalone
+  output: "standalone",
   reactStrictMode: false,
 
   webpack: (config, { isServer }) => {
