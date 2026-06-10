@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 鍙欏锛圶ujing锛塂atabase Health Check
  *
  * 妫€鏌ワ細杩炴帴銆丼chema 瀛樺湪銆丮igration 鍚屾
@@ -24,10 +24,10 @@ export async function checkDatabaseHealth(): Promise<HealthStatus> {
   };
 
   try {
-    // 1. 杩炴帴妫€鏌?    await db.execute(sql`SELECT 1`);
+    // 1. Connection check
     status.connected = true;
 
-    // 2. Schema 瀛樺湪妫€鏌?鈥?鏋氫妇鎵€鏈夐鏈熻〃
+    // 2. Schema check
     const expectedTables = [
       "users",
       "characters",
@@ -53,7 +53,7 @@ export async function checkDatabaseHealth(): Promise<HealthStatus> {
       status.error = `Missing tables: ${missing.join(", ")}`;
     }
 
-    // 3. Migration 鍚屾妫€鏌?鈥?drizzle __drizzle_migrations 琛?    try {
+    // 3. Migration check`r`n    try {
       const migrationResult = await db.execute<{ count: string }>(
         sql`SELECT COUNT(*) as count FROM __drizzle_migrations`
       );
