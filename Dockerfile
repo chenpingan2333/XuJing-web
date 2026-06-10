@@ -1,10 +1,12 @@
-FROM node:18-slim AS builder
+FROM node:18 AS builder
 
 WORKDIR /app
 
-# 只复制 package.json，让 npm 在 Linux 容器内自行解析平台依赖
 COPY package.json ./
 RUN npm install
+
+# 显式安装 @tailwindcss/oxide 的 Linux x64 原生二进制
+RUN npm install @tailwindcss/oxide-linux-x64-gnu
 
 COPY . .
 
