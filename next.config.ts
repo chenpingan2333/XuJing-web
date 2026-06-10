@@ -24,7 +24,7 @@ const nextConfig: NextConfig = {
     return config;
   },
 
-  serverExternalPackages: ["ioredis", "jose", "@neondatabase/serverless"],
+  serverExternalPackages: ["ioredis", "jose", "postgres"],
 };
 
 export default nextConfig;
