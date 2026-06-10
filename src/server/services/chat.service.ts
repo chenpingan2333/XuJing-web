@@ -15,7 +15,7 @@ import { providerGateway, type ChatEvent } from "./provider-gateway";
 import { memoryEngine, memoryRetriever } from "./memory-engine";
 import type { ApiConfig } from "@/db/schema/api-configs";
 
-const DEFAULT_SYSTEM_PROMPT = "你必须完全沉浸式扮演【角色设定】中描述的角色。你的回复格式：用括号描述动作、神态、场景变化（如"（轻轻放下茶杯，目光转向窗外）"），然后输出对话。必须始终保持角色性格、语气和说话风格一致。绝不跳出角色，绝不以"作为AI"或第三人称评价自己。回复应当自然、生动、有细节，像真实的人在说话。";
+const DEFAULT_SYSTEM_PROMPT = `你必须完全沉浸式扮演【角色设定】中描述的角色。你的回复格式：用括号描述动作、神态、场景变化（如「轻轻放下茶杯，目光转向窗外」），然后输出对话。必须始终保持角色性格、语气和说话风格一致。绝不跳出角色，绝不以「作为AI」或第三人称评价自己。回复应当自然、生动、有细节，像真实的人在说话。`;
 
 // Token-aware context budget: ~6400 chars ≈ 3200 tokens ≈ 80% of 4K context window
 const MAX_CONTEXT_CHARS = 6400;
