@@ -16,6 +16,6 @@ rm -rf .next/standalone/public/uploads
 ln -sfn $(pwd)/public/uploads .next/standalone/public/uploads
 cp -r .next/static .next/standalone/.next/static
 cp .env.production .next/standalone/
-HOSTNAME=0.0.0.0 nohup node .next/standalone/server.js > /tmp/xujing.log 2>&1 &
+HOSTNAME=0.0.0.0 PORT=3003 nohup node .next/standalone/server.js > /tmp/xujing.log 2>&1 &
 sleep 3
-curl http://127.0.0.1:3000/api/health
+curl http://127.0.0.1:3003/api/health
