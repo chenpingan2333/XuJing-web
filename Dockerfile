@@ -3,16 +3,13 @@
 # ============================================================
 FROM node:18-slim AS builder
 
-# 安装 pnpm
-RUN corepack enable && corepack prepare pnpm@9 --activate
-
 WORKDIR /app
 
 # 先复制依赖文件，利用 Docker 缓存层
-COPY .npmrc package.json pnpm-lock.yaml ./
+COPY package.json package-lock.json ./
 
-# 安装依赖
-RUN pnpm install --frozen-lockfile
+# 使用 npm 安装（避免 pnpm 虚拟存储与原生模块不兼容）
+RUN npm ci
 
 # 复制源码
 COPY . .
@@ -25,8 +22,6 @@ RUN npx next build
 # Stage 2: 生产运行镜像
 # ============================================================
 FROM node:18-slim AS runner
-
-RUN corepack enable && corepack prepare pnpm@9 --activate
 
 # 创建非 root 用户
 RUN addgroup --system --gid 1001 nodejs && \
