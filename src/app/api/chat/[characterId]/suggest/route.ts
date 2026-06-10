@@ -1,4 +1,4 @@
-﻿export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 import { requireAuth } from "../../../_base/auth";
 import { jsonOk, jsonErr } from "../../../_base/response";
