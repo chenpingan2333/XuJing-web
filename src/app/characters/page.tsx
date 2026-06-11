@@ -1,6 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useAuth } from "@/lib/use-auth";
+import { safeDate } from "@/lib/utils";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -21,7 +22,8 @@ const FREE_LIMIT = 2;
 
 function formatChatTime(iso: string): string {
   if (!iso) return "";
-  const d = new Date(iso);
+  const d = safeDate(iso);
+  if (!d) return "";
   const now = new Date();
   const isToday = d.toDateString() === now.toDateString();
   const yesterday = new Date(now);

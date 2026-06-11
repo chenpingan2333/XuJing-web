@@ -12,6 +12,7 @@
  */
 
 import { useAuth } from "@/lib/use-auth";
+import { safeDate } from "@/lib/utils";
 import { useState, useEffect, useCallback } from "react";
 
 interface UserRow {
@@ -97,12 +98,18 @@ export default function AdminUsersPage() {
     setVipModal(null);
   };
 
-  const isVip = (u: UserRow) =>
-    u.vipExpiresAt && new Date(u.vipExpiresAt) > new Date();
+  const isVip = (u: UserRow) => {
+    if (!u.vipExpiresAt) return false;
+    const expiresAt = safeDate(u.vipExpiresAt);
+    const now = new Date();
+    return expiresAt && expiresAt > now;
+  };
 
   const fmtDate = (iso: string | null) => {
     if (!iso) return "—";
-    return new Date(iso).toLocaleDateString("zh-CN", {
+    const date = safeDate(iso);
+    if (!date) return "—";
+    return date.toLocaleDateString("zh-CN", {
       year: "numeric",
       month: "2-digit",
       day: "2-digit",

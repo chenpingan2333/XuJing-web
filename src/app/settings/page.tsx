@@ -27,7 +27,7 @@ export default function SettingsPage() {
       <div className="flex h-dvh flex-col items-center justify-center gap-3">
         <div className="text-sm text-gray-500">请先登录</div>
         <button
-          onClick={() => { window.location.href = "/me"; }}
+          onClick={() => router.push("/me")}
           className="text-sm text-gray-900 underline"
         >
           前往登录
@@ -61,7 +61,7 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="flex items-center gap-3 px-5 pt-12 pb-4">
         <button
-          onClick={() => { window.location.href = "/me"; }}
+          onClick={() => router.push("/me")}
           className="text-gray-400 text-lg"
         >
           &larr;
@@ -203,7 +203,7 @@ export default function SettingsPage() {
         {/* Logout */}
         <section className="pb-8">
           <button
-            onClick={async () => { await logout(); window.location.href = "/me"; }}
+            onClick={async () => { await logout(); router.push("/me"); }}
             className="w-full rounded-xl bg-red-50 py-3 text-sm font-medium text-red-600"
           >
             退出登录

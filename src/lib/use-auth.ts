@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useCallback } from "react";
 
@@ -68,6 +68,8 @@ function safeRemoveItem(key: string): void {
 const TOKEN_KEY = "xujing_token";
 const REFRESH_KEY = "xujing_refresh";
 const USER_ID_KEY = "xujing_uid";
+const USER_INFO_KEY = "xujing_user_info";
+const TOKEN_EXPIRY_KEY = "xujing_token_expiry";
 
 function getStoredToken(): string | null {
   return safeGetItem(TOKEN_KEY);
@@ -78,16 +80,53 @@ function getStoredRefresh(): string | null {
 function getStoredUserId(): string | null {
   return safeGetItem(USER_ID_KEY);
 }
-function persistAuth(token: string, refreshToken: string, userId: string) {
+function getStoredUserInfo(): UserInfo | null {
+  const stored = safeGetItem(USER_INFO_KEY);
+  if (!stored) return null;
+  try {
+    const userInfo = JSON.parse(stored);
+    // 验证缓存的有效性（缓存1小时）
+    const cacheTime = safeGetItem(TOKEN_EXPIRY_KEY);
+    if (cacheTime && Date.now() - parseInt(cacheTime) > 3600000) {
+      safeRemoveItem(USER_INFO_KEY);
+      safeRemoveItem(TOKEN_EXPIRY_KEY);
+      return null;
+    }
+    return userInfo;
+  } catch {
+    return null;
+  }
+}
+function persistAuth(token: string, refreshToken: string, userId: string, userInfo?: UserInfo) {
   safeSetItem(TOKEN_KEY, token);
   safeSetItem(REFRESH_KEY, refreshToken);
   safeSetItem(USER_ID_KEY, userId);
+  if (userInfo) {
+    safeSetItem(USER_INFO_KEY, JSON.stringify(userInfo));
+    safeSetItem(TOKEN_EXPIRY_KEY, Date.now().toString());
+  }
 }
 function clearAuth() {
   safeRemoveItem(TOKEN_KEY);
   safeRemoveItem(REFRESH_KEY);
   safeRemoveItem(USER_ID_KEY);
+  safeRemoveItem(USER_INFO_KEY);
+  safeRemoveItem(TOKEN_EXPIRY_KEY);
 }
+// ─── Token expiration check ───
+
+function isTokenExpiringSoon(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const exp = payload.exp * 1000; // Convert to milliseconds
+    const now = Date.now();
+    // If token expires in less than 5 minutes, consider it expiring soon
+    return exp - now < 300000;
+  } catch {
+    return false;
+  }
+}
+
 // ─── Silent refresh ───
 
 let refreshPromise: Promise<string | null> | null = null;
@@ -123,17 +162,35 @@ async function tryRefreshToken(): Promise<string | null> {
   return refreshPromise;
 }
 
+// ─── Proactive refresh ───
+
+async function refreshTokenIfNeeded(token: string): Promise<string | null> {
+  if (isTokenExpiringSoon(token)) {
+    return await tryRefreshToken();
+  }
+  return token;
+}
+
 // ─── API helper with auto-refresh ───
 
 async function apiCall<T>(path: string, token: string | null, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (token) headers["Authorization"] = "Bearer " + token;
+  
+  // Proactive refresh before making the request
+  let currentToken = token;
+  if (currentToken) {
+    const refreshedToken = await refreshTokenIfNeeded(currentToken);
+    if (refreshedToken) {
+      currentToken = refreshedToken;
+    }
+    headers["Authorization"] = "Bearer " + currentToken;
+  }
 
   let res = await fetch(path, { ...options, headers });
   const ct = res.headers.get("content-type") || "";
 
   // Attempt silent refresh on 401
-  if (res.status === 401 && token) {
+  if (res.status === 401 && currentToken) {
     const newToken = await tryRefreshToken();
     if (newToken) {
       headers["Authorization"] = "Bearer " + newToken;
@@ -184,7 +241,7 @@ export function useAuth() {
     loading: true,
   });
 
-  // Initialize from localStorage
+  // Initialize from localStorage with caching
   useEffect(() => {
     let cancelled = false;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -206,23 +263,40 @@ export function useAuth() {
       return () => { cancelled = true; };
     }
 
+    // Check for cached user info first
+    const cachedUser = getStoredUserInfo();
+    if (cachedUser) {
+      setState({ token, user: cachedUser, loading: false });
+      return () => { cancelled = true; };
+    }
+
     setState((s) => ({ ...s, token, loading: true }));
-    fetchUser(token)
-      .then((user) => done({ token, user, loading: false }))
-      .catch(async (err) => {
-        console.warn("[useAuth] Failed to restore session:", err instanceof Error ? err.message : String(err));
-        // Try refresh before giving up
-        const newToken = await tryRefreshToken();
-        if (newToken && !cancelled) {
-          try {
-            const user = await fetchUser(newToken);
-            done({ token: newToken, user, loading: false });
-            return;
-          } catch { /* fall through */ }
-        }
-        clearAuth();
-        done({ token: null, user: null, loading: false });
-      });
+    
+    // Check if token needs refresh before fetching user
+    refreshTokenIfNeeded(token).then((refreshedToken) => {
+      const finalToken = refreshedToken || token;
+      
+      fetchUser(finalToken)
+        .then((user) => {
+          persistAuth(finalToken, getStoredRefresh() || "", getStoredUserId() || "", user);
+          done({ token: finalToken, user, loading: false });
+        })
+        .catch(async (err) => {
+          console.warn("[useAuth] Failed to restore session:", err instanceof Error ? err.message : String(err));
+          // Try refresh before giving up
+          const newToken = await tryRefreshToken();
+          if (newToken && !cancelled) {
+            try {
+              const user = await fetchUser(newToken);
+              persistAuth(newToken, getStoredRefresh() || "", getStoredUserId() || "", user);
+              done({ token: newToken, user, loading: false });
+              return;
+            } catch { /* fall through */ }
+          }
+          clearAuth();
+          done({ token: null, user: null, loading: false });
+        });
+    });
 
     return () => {
       cancelled = true;
@@ -253,8 +327,8 @@ export function useAuth() {
         { method: "POST", body: JSON.stringify({ email, code }) }
       );
       const { accessToken, refreshToken, userId } = data.data;
-      persistAuth(accessToken, refreshToken, userId);
       const user = await fetchUser(accessToken);
+      persistAuth(accessToken, refreshToken, userId, user);
       setState({ token: accessToken, user, loading: false });
       return null;
     } catch (err) {
@@ -272,8 +346,8 @@ export function useAuth() {
         { method: "POST", body: JSON.stringify({ email, password }) }
       );
       const { accessToken, refreshToken, userId } = data.data;
-      persistAuth(accessToken, refreshToken, userId);
       const user = await fetchUser(accessToken);
+      persistAuth(accessToken, refreshToken, userId, user);
       setState({ token: accessToken, user, loading: false });
       return null;
     } catch (err) {

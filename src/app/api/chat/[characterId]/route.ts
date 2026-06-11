@@ -45,6 +45,23 @@ export async function GET(
     limit,
   );
 
+  // Create greeting message if no history exists and character has greeting
+  if (messages.length === 0 && character.greeting) {
+    const { messageRepository } = await import("@/server/repositories/message.repository");
+    const greetingText = character.greeting.split('<START>')[0].trim();
+    
+    if (greetingText) {
+      const greetingMessage = await messageRepository.create({
+        characterId,
+        userId: auth.userId,
+        role: 'ASSISTANT',
+        content: greetingText,
+      });
+      
+      messages.push(greetingMessage);
+    }
+  }
+
   // Memory status for frontend display
   const memCount = await memoryRepository.countByCharacter(characterId, auth.userId);
   const isVip = auth.subscription === "vip";

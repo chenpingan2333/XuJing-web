@@ -14,6 +14,7 @@ import { userRepository } from "../repositories/user.repository";
 import { providerGateway, type ChatEvent } from "./provider-gateway";
 import { memoryEngine, memoryRetriever } from "./memory-engine";
 import type { ApiConfig } from "@/db/schema/api-configs";
+import type { Message } from "@/db/schema/messages";
 
 const DEFAULT_SYSTEM_PROMPT = `你现在正在严格扮演用户提供的角色卡中的角色，绝对不允许OOC（Out of Character）。
 
@@ -258,7 +259,7 @@ export class ChatService {
       greeting: character.greeting,
       extraFields: character.extraFields as Record<string, unknown> | null,
       postHistoryInstructions: character.postHistoryInstructions,
-    }, user?.personaSetting ?? undefined, historyMessages, 10);
+    }, historyMessages, 10, user?.personaSetting ?? undefined);
 
     const chatMessages = [...historyMessages].reverse().map((m) => ({
       role: m.role === "USER" ? ("user" as const) : ("assistant" as const),
@@ -381,9 +382,9 @@ export class ChatService {
       greeting?: string | null;
       extraFields?: Record<string, unknown> | null;
     },
-    personaSetting?: string,
     historyMessages: Message[], 
-    limit: number
+    limit: number,
+    personaSetting?: string
   ): string {
     const recentMessages = historyMessages.slice(-limit);
     const conversationContext = recentMessages
