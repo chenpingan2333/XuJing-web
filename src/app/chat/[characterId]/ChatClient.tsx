@@ -497,7 +497,7 @@ export function ChatClient({ characterId }: { characterId: string }) {
 
           {/* Start button */}
           <button
-            onClick={() => { setGreetingDismissed(true); const g = character?.greeting; if (g) { const p = g.split("<START>")[0]?.trim(); if (p) setMessages([{id:"greeting-"+Date.now(),role:"ASSISTANT",content:p,createdAt:new Date().toISOString()}]); } }}
+            onClick={() => { setGreetingDismissed(true); const g = character?.greeting; if (g) { const p = g.split("<START>")[0]?.trim(); if (p) { const messageId = "greeting-"+Date.now(); setMessages([{id:messageId,role:"ASSISTANT",content:p,createdAt:new Date().toISOString()}]); fetch(`/api/chat/${characterId}/message`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: messageId, role: 'ASSISTANT', content: p, createdAt: new Date().toISOString() }) }); } } }}
             className="inline-flex items-center gap-2 rounded-full bg-neutral-900 px-8 py-3 text-sm font-medium text-stone-50 transition-all duration-200 hover:bg-neutral-800 active:scale-[0.97] shadow-lg shadow-neutral-900/10"
           >
             开始对话
