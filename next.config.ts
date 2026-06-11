@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   // Docker standalone 模式：仅打包生产必需文件，输出到 .next/standalone
   output: "standalone",
   reactStrictMode: false,
+  assetPrefix: process.env.NODE_ENV === 'production' ? process.env.ASSET_PREFIX : undefined,
 
   webpack: (config, { isServer }) => {
     if (isServer) {

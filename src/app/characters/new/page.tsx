@@ -264,6 +264,18 @@ export default function NewCharacterPage() {
 
       const data = await res.json();
       if (!data.success) { setError(data.error || "创建失败"); setSaving(false); return; }
+
+      // 同步头像到用户资料
+      if (avatarUrl) {
+        try {
+          await fetch("/api/user/profile", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + s.token },
+            body: JSON.stringify({ avatarUrl }),
+          });
+        } catch { /* 用户资料更新失败不影响角色创建流程 */ }
+      }
+
       router.push(`/characters/${data.data.id}`);
     } catch { setError("网络异常，请检查连接后重试"); }
     finally { setSaving(false); }

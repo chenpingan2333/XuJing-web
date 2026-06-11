@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDisplayId } from "@/lib/utils";
 import { useApiStatus } from "@/lib/use-api-status";
+import AvatarUpload from "@/components/AvatarUpload";
 
 export default function SettingsPage() {
   const { user, loading, logout } = useAuth();
@@ -74,14 +75,8 @@ export default function SettingsPage() {
           <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
             头像
           </h2>
-          <div className="flex items-center gap-4 rounded-xl bg-gray-50 p-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-200 text-lg text-gray-400">
-              {user.userId.slice(0, 2).toUpperCase()}
-            </div>
-            <div>
-              <div className="text-sm text-gray-500">点击更换头像</div>
-              <div className="text-xs text-gray-300">（开发中）</div>
-            </div>
+          <div className="rounded-xl bg-gray-50 p-4">
+            <AvatarUpload />
           </div>
         </section>
 

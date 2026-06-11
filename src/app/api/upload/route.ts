@@ -63,7 +63,7 @@ export async function POST(req: Request) {
     const buffer = Buffer.from(await file.arrayBuffer());
     await writeFile(path.join(UPLOAD_DIR, filename), buffer);
 
-    return jsonOk({ url: "/uploads/" + filename }, 201);
+    return jsonOk({ url: `${process.env.ASSET_PREFIX || ""}/uploads/` + filename }, 201);
   } catch (err) {
     console.error("[upload] Local upload failed:", err instanceof Error ? err.message : String(err));
     return jsonErr("Upload failed. Please try again.", 500);
