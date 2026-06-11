@@ -243,7 +243,10 @@ export class ChatService {
       return;
     }
 
-    const systemPrompt = this._buildSystemPrompt({
+    const memories = await memoryRetriever.retrieve(characterId, userId, "", MEMORY_TOP_K);
+    const historyMessages = await messageRepository.findHistory(characterId, userId, HISTORY_FETCH_LIMIT);
+
+    const systemPrompt = this._buildSuggestionSystemPrompt({
       mainPrompt: character.mainPrompt,
       setting: character.setting,
       personality: character.personality,
@@ -255,10 +258,7 @@ export class ChatService {
       greeting: character.greeting,
       extraFields: character.extraFields as Record<string, unknown> | null,
       postHistoryInstructions: character.postHistoryInstructions,
-    }, user?.personaSetting ?? undefined);
-
-    const memories = await memoryRetriever.retrieve(characterId, userId, "", MEMORY_TOP_K);
-    const historyMessages = await messageRepository.findHistory(characterId, userId, HISTORY_FETCH_LIMIT);
+    }, user?.personaSetting ?? undefined, historyMessages, 10);
 
     const chatMessages = [...historyMessages].reverse().map((m) => ({
       role: m.role === "USER" ? ("user" as const) : ("assistant" as const),
@@ -349,7 +349,7 @@ export class ChatService {
 
     chatMessages.push({
       role: "user",
-      content: "（请以用户的身份，生成一条简短的回复建议，直接输出内容，不要加任何前缀）",
+      content: "请根据以上对话历史，以用户（我）的身份生成一条简短自然的回复建议，直接输出回复内容，不要加任何前缀或解释。",
     });
 
     let suggestion = "";
@@ -363,6 +363,69 @@ export class ChatService {
       }
     } catch { return ""; }
     return suggestion.trim();
+  }
+
+  /**
+   * Build system prompt for suggestion generation (user perspective)
+   */
+  private _buildSuggestionSystemPrompt(
+    character: {
+      mainPrompt?: string | null;
+      setting?: string | null;
+      personality?: string | null;
+      scenario?: string | null;
+      dialogueExamples?: string | null;
+      nickname?: string | null;
+      postHistoryInstructions?: string | null;
+      name?: string | null;
+      greeting?: string | null;
+      extraFields?: Record<string, unknown> | null;
+    },
+    personaSetting?: string,
+    historyMessages: Message[], 
+    limit: number
+  ): string {
+    const recentMessages = historyMessages.slice(-limit);
+    const conversationContext = recentMessages
+      .map(msg => `${msg.role === 'USER' ? '用户' : '角色'}: ${msg.content}`)
+      .join('\n');
+    
+    const parts: string[] = [];
+    
+    // 基础角色扮演指令
+    parts.push(`你正在严格扮演角色，必须100%忠实于角色设定。请根据对话历史，以用户的视角生成一条简短自然的回复建议。`);
+    
+    // 角色信息
+    if (character.name) {
+      parts.push(`角色名：${character.name}`);
+    }
+    if (character.personality) {
+      parts.push(`角色性格：${character.personality}`);
+    }
+    if (character.setting) {
+      parts.push(`世界观设定：${character.setting}`);
+    }
+    if (character.scenario) {
+      parts.push(`当前情景：${character.scenario}`);
+    }
+    
+    // 用户人设信息
+    if (personaSetting) {
+      parts.push(`用户身份：${personaSetting}`);
+    }
+    
+    // 对话历史
+    parts.push(`对话历史：\n${conversationContext}`);
+    
+    // 回复要求
+    parts.push(`回复要求：
+1. 以用户（我）的身份思考，考虑与角色的关系
+2. 回复要简短自然，符合角色设定和对话上下文
+3. 直接输出回复内容，不要加任何前缀或解释
+4. 保持回复在1-2句话内
+5. 符合角色对用户的称呼和互动方式`);
+    
+    return parts.join('\n\n');
   }
 
   /**
