@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useAuth } from "@/lib/use-auth";
 import { useState, useEffect, useCallback, useMemo, useRef, type DragEvent } from "react";
@@ -264,7 +264,7 @@ export default function NewCharacterPage() {
 
       const data = await res.json();
       if (!data.success) { setError(data.error || "创建失败"); setSaving(false); return; }
-      router.push("/characters");
+      router.push(`/characters/${data.data.id}`);
     } catch { setError("网络异常，请检查连接后重试"); }
     finally { setSaving(false); }
   }, [router]);
