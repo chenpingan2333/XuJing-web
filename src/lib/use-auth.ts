@@ -92,6 +92,17 @@ function getStoredUserInfo(): UserInfo | null {
       safeRemoveItem(TOKEN_EXPIRY_KEY);
       return null;
     }
+    // Convert createdAt string back to Date object after localStorage restore
+    if (userInfo.createdAt && typeof userInfo.createdAt === 'string') {
+      const date = new Date(userInfo.createdAt);
+      if (!isNaN(date.getTime())) {
+        userInfo.createdAt = date;
+      } else {
+        console.log('[AUTH-CACHE-INVALID-DATE]', userInfo.createdAt);
+        safeRemoveItem(USER_INFO_KEY);
+        return null;
+      }
+    }
     return userInfo;
   } catch {
     return null;
@@ -254,10 +265,16 @@ export function useAuth() {
 
     timeoutId = setTimeout(() => {
       console.warn("[useAuth] Auth init timed out after", AUTH_LOAD_TIMEOUT, "ms");
+      console.log('[AUTH-13] 页面跳转首页前', { 
+        reason: '认证初始化超时',
+        timeout: AUTH_LOAD_TIMEOUT,
+        timestamp: Date.now() 
+      });
       done({ token: null, user: null, loading: false });
     }, AUTH_LOAD_TIMEOUT);
 
     const token = getStoredToken();
+    console.log('[Auth Debug] Token 读取完成:', new Date().toISOString());
     if (!token) {
       done({ token: null, user: null, loading: false });
       return () => { cancelled = true; };
@@ -266,28 +283,41 @@ export function useAuth() {
     // Check for cached user info first
     const cachedUser = getStoredUserInfo();
     if (cachedUser) {
-      setState({ token, user: cachedUser, loading: false });
+      console.log('[AUTH-CACHE]', cachedUser);
+      done({
+        token,
+        user: cachedUser,
+        loading: false
+      });
       return () => { cancelled = true; };
     }
 
     setState((s) => ({ ...s, token, loading: true }));
     
     // Check if token needs refresh before fetching user
+    console.log('[AUTH-PX-1]', Date.now(), 'refreshTokenIfNeeded(初始) 开始');
     refreshTokenIfNeeded(token).then((refreshedToken) => {
+      console.log('[AUTH-PX-2]', Date.now(), 'refreshTokenIfNeeded(初始) 完成, refreshedToken:', refreshedToken ? '有效' : '无效');
       const finalToken = refreshedToken || token;
       
+      console.log('[AUTH-PX-3]', Date.now(), 'fetchUser(初始) 开始');
       fetchUser(finalToken)
         .then((user) => {
+          console.log('[AUTH-PX-4]', Date.now(), 'fetchUser(初始) 完成, user:', user ? '已获取' : '为空');
           persistAuth(finalToken, getStoredRefresh() || "", getStoredUserId() || "", user);
           done({ token: finalToken, user, loading: false });
         })
         .catch(async (err) => {
           console.warn("[useAuth] Failed to restore session:", err instanceof Error ? err.message : String(err));
           // Try refresh before giving up
+          console.log('[AUTH-PX-5]', Date.now(), 'tryRefreshToken(重试) 开始');
           const newToken = await tryRefreshToken();
+          console.log('[AUTH-PX-6]', Date.now(), 'tryRefreshToken(重试) 完成, newToken:', newToken ? '有效' : '无效');
           if (newToken && !cancelled) {
             try {
-              const user = await fetchUser(newToken);
+              console.log('[AUTH-PX-7]', Date.now(), 'fetchUser(重试) 开始');
+            const user = await fetchUser(newToken);
+            console.log('[AUTH-PX-8]', Date.now(), 'fetchUser(重试) 完成, user:', user ? '已获取' : '为空');
               persistAuth(newToken, getStoredRefresh() || "", getStoredUserId() || "", user);
               done({ token: newToken, user, loading: false });
               return;
