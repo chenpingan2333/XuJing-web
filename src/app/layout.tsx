@@ -13,6 +13,9 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "叙境 Xujing",
   description: "AI 恋爱陪伴平台",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

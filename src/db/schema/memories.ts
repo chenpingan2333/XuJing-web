@@ -6,7 +6,7 @@
  */
 
 import { pgTable, uuid, text, timestamp, numeric, jsonb, varchar, index } from "drizzle-orm/pg-core";
-import { desc } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
 import { characters } from "./characters";
 import { users } from "./users";
 import { memoryCategoryEnum } from "../enums";
@@ -31,6 +31,7 @@ export const memories = pgTable(
     extractedFromMessageId: uuid("extracted_from_message_id"),
     embedding: jsonb("embedding"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => ({
     charUserIdx: index("idx_memories_char_user").on(table.characterId, table.userId),
@@ -41,6 +42,7 @@ export const memories = pgTable(
       table.userId,
       desc(table.importance)
     ),
+    activeIdx: index("idx_memories_active").on(table.id).where(sql`${table.deletedAt} IS NULL`),
   })
 );
 

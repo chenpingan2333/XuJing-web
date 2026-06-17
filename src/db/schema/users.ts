@@ -1,4 +1,4 @@
-﻿/**
+/**
  * users 表 — V1.4
  *
  * role={USER, ADMIN}，VIP 用 vip_expires_at 表达。
@@ -7,7 +7,8 @@
  * uid: 全局递增 serial，用于展示 ID（xujing_YYYYMMDDXXXXX）。
  */
 
-import { pgTable, uuid, varchar, timestamp, bigint, boolean, text, uniqueIndex, serial } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, timestamp, bigint, boolean, text, uniqueIndex, serial, index } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { userRoleEnum, userStatusEnum } from "../enums";
 import { uuidv7 } from "../helpers";
 
@@ -33,10 +34,12 @@ export const users = pgTable(
       .notNull()
       .$defaultFn(() => new Date())
       .$onUpdateFn(() => new Date()),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => ({
     emailUnique: uniqueIndex("idx_users_email_unique").on(table.email),
     uidUnique: uniqueIndex("idx_users_uid_unique").on(table.uid),
+    activeIdx: index("idx_users_active").on(table.id).where(sql`${table.deletedAt} IS NULL`),
   })
 );
 

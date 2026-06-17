@@ -198,8 +198,15 @@ export class ChatService {
               content: fullResponse,
             });
           }
+          console.log("[MEMORY] extractAndPersist start", { characterId, messageCount: chatMessages.length });
+          try {
+            console.log("[MEMORY] engine entered");
+            await memoryEngine.extractAndPersist(characterId, userId, 20, config ?? undefined);
+            console.log("[MEMORY] extractAndPersist finished");
+          } catch (error) {
+            console.error("[MEMORY] extractAndPersist error", error);
+          }
           yield { type: "done" };
-          memoryEngine.extractAndPersist(characterId, userId, 20, config ?? undefined).catch(() => {});
         } else if (event.type === "error") {
           yield event;
         }

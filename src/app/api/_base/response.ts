@@ -16,7 +16,7 @@ export interface ApiResponse<T = unknown> {
 export function jsonOk<T>(data: T, status = 200): Response {
   return Response.json(
     { success: true, data, timestamp: new Date().toISOString() } satisfies ApiResponse<T>,
-    { status }
+    { status, headers: { 'Cache-Control': 'no-store' } }
   );
 }
 
@@ -24,7 +24,7 @@ export function jsonOk<T>(data: T, status = 200): Response {
 export function jsonErr(message: string, status = 400): Response {
   return Response.json(
     { success: false, error: message, timestamp: new Date().toISOString() } satisfies ApiResponse,
-    { status }
+    { status, headers: { 'Cache-Control': 'no-store' } }
   );
 }
 

@@ -13,7 +13,7 @@ export function CharacterHeader({ name, avatarUrl, memoryUsed, memoryLimit, onMe
   const safeAvatar = avatarUrl ?? "";
 
   return (
-    <div className="flex items-center gap-3 px-6 py-3 border-b border-stone-200 bg-stone-50">
+    <div className="flex items-center gap-3 px-6 py-3 border-b border-stone-200 bg-white/60 backdrop-blur-md">
       <div className="w-9 h-9 rounded-lg bg-stone-200 overflow-hidden flex-shrink-0">
         {safeAvatar ? (
           <img

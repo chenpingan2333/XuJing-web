@@ -1,0 +1,73 @@
+# ==============================================================================
+# 叙境-web PostgreSQL 备份 Crontab 配置示例
+# ==============================================================================
+# 文件：docs/p0-security/cron-postgres-backup.example
+# 用途：配合 scripts/backup-postgres.sh 使用，设定定时备份计划
+# 前置：将 backup-postgres.sh 部署到 /usr/local/bin/ 并赋予执行权限
+#        chmod +x /usr/local/bin/backup-postgres.sh
+# ==============================================================================
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 安装方式（选择其一）：
+#
+# 方式1：直接编辑 crontab
+#   crontab -e
+#   然后将下方配置粘贴保存
+#
+# 方式2：通过文件导入
+#   crontab cron-postgres-backup.example
+#
+# 方式3：追加到现有 crontab
+#   (crontab -l 2>/dev/null; cat cron-postgres-backup.example) | crontab -
+# ──────────────────────────────────────────────────────────────────────────────
+
+# 环境变量（cron 环境下 PATH 较少，需显式指定）
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MAILTO=root
+
+# ==============================================================================
+# PostgreSQL 每日全量备份 — 每天凌晨 02:00 执行
+# ==============================================================================
+# 备份脚本路径
+# --db-host：数据库主机（本机为 127.0.0.1）
+# --db-port：数据库端口
+# --db-name：数据库名称
+# --db-user：数据库用户
+# --backup-dir：备份存储目录
+# --retention-daily：日备份保留天数（默认7）
+# --retention-weekly：周备份保留周数（默认4）
+# --retention-monthly：月备份保留月数（默认6）
+# ==============================================================================
+0 2 * * * /usr/local/bin/backup-postgres.sh --db-host=127.0.0.1 --db-port=5432 --db-name=xujing --db-user=postgres --backup-dir=/var/backup/xujing/postgres >> /var/log/xujing/backup-postgres.log 2>&1
+
+# ==============================================================================
+# 可选：备份日志轮转（防止日志文件无限增长）
+# ==============================================================================
+# 每周日凌晨 03:00 截断日志文件（保留最后 1000 行）
+0 3 * * 0 tail -1000 /var/log/xujing/backup-postgres.log > /var/log/xujing/backup-postgres.log.tmp && mv /var/log/xujing/backup-postgres.log.tmp /var/log/xujing/backup-postgres.log
+
+# ==============================================================================
+# 可选：备份完整性抽检 — 每周日凌晨 04:00 随机抽取一个备份进行恢复测试
+# ==============================================================================
+# 0 4 * * 0 /usr/local/bin/verify-postgres-backup.sh >> /var/log/xujing/backup-verify.log 2>&1
+
+# ==============================================================================
+# 注意事项：
+# 1. 首次部署后，手动执行一次备份脚本确认正常：
+#    /usr/local/bin/backup-postgres.sh --db-host=127.0.0.1 --db-port=5432 --db-name=xujing --db-user=postgres --backup-dir=/var/backup/xujing/postgres
+#
+# 2. 确认备份目录存在且有足够磁盘空间：
+#    mkdir -p /var/backup/xujing/postgres
+#    df -h /var/backup/xujing/
+#
+# 3. 确认日志目录存在：
+#    mkdir -p /var/log/xujing
+#
+# 4. 数据库密码通过 ~/.pgpass 文件配置（推荐），格式：
+#    hostname:port:database:username:password
+#    127.0.0.1:5432:xujing:postgres:YOUR_PASSWORD
+#    权限：chmod 600 ~/.pgpass
+#
+# 5. 生产环境建议将 MAILTO 设为运维邮箱，以便备份失败时收到告警
+# ==============================================================================

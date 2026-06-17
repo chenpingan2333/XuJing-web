@@ -32,12 +32,14 @@ export const apiConfigs = pgTable(
       .notNull()
       .$defaultFn(() => new Date())
       .$onUpdateFn(() => new Date()),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => ({
     userIdIdx: index("idx_api_configs_user_id").on(table.userId),
     userDefaultUnique: uniqueIndex("idx_api_configs_user_default")
       .on(table.userId)
       .where(sql`${table.isDefault} = true`),
+    activeIdx: index("idx_api_configs_active").on(table.userId).where(sql`${table.deletedAt} IS NULL`),
   })
 );
 

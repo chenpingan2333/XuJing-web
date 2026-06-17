@@ -6,7 +6,7 @@
  */
 
 import { pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core";
-import { desc } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
 import { messageRoleEnum } from "../enums";
 import { characters } from "./characters";
 import { users } from "./users";
@@ -27,6 +27,7 @@ export const messages = pgTable(
     role: messageRoleEnum("role").notNull(),
     content: text("content").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => ({
     charCreatedIdx: index("idx_messages_char_created").on(table.characterId, desc(table.createdAt)),
@@ -36,6 +37,7 @@ export const messages = pgTable(
       table.characterId,
       desc(table.createdAt)
     ),
+    activeIdx: index("idx_messages_active").on(table.id).where(sql`${table.deletedAt} IS NULL`),
   })
 );
 

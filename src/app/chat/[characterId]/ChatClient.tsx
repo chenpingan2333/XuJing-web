@@ -106,7 +106,9 @@ export function ChatClient({ characterId }: { characterId: string }) {
   const [memories, setMemories] = useState<MemoryData[]>([]);
   const [fetchingMemories, setFetchingMemories] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [activeModal, setActiveModal] = useState<"restart" | "stats" | "export" | "memories" | null>(null);
+  const [activeModal, setActiveModal] = useState<"restart" | "stats" | "export" | "memories" | "background" | "editAiMessage" | null>(null);
+  const [editingMessage, setEditingMessage] = useState<MessageData | null>(null);
+  const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
   const [restarting, setRestarting] = useState(false);
 
   const isVip = user?.subscription === "vip";
@@ -163,6 +165,7 @@ export function ChatClient({ characterId }: { characterId: string }) {
   // ── Fetch character + messages ──
   const fetchData = useCallback(async () => {
     if (!token) return;
+    setBackgroundUrl(null);
     try {
       const headers = { Authorization: "Bearer " + token };
       const charRes = await fetch("/api/characters/" + characterId, { headers });
@@ -192,10 +195,31 @@ export function ChatClient({ characterId }: { characterId: string }) {
     setFetching(false);
   }, [token, characterId]);
 
+  // ── Fetch background settings ──
+  const fetchSettings = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch("/api/characters/" + characterId + "/settings", {
+        headers: { Authorization: "Bearer " + token },
+      });
+      const data = await res.json();
+      if (data.success && data.data?.backgroundUrl) {
+        setBackgroundUrl(data.data.backgroundUrl);
+      } else {
+        setBackgroundUrl(null);
+      }
+    } catch {
+      setBackgroundUrl(null);
+    }
+  }, [token, characterId]);
+
   useEffect(() => {
-    if (token) fetchData();
-    else if (!authLoading) setFetching(false);
-  }, [token, authLoading, fetchData]);
+    if (token) {
+      Promise.all([fetchData(), fetchSettings()]);
+    } else if (!authLoading) {
+      setFetching(false);
+    }
+  }, [token, authLoading, fetchData, fetchSettings]);
 
   // ── Auth headers helper ──
   const authHeaders = useCallback(
@@ -328,6 +352,40 @@ export function ChatClient({ characterId }: { characterId: string }) {
     }
   }, [token, characterId, isStreaming, authHeaders]);
 
+  // ── Rewrite: user message → fillText to InputBar ──
+  const handleRewriteUser = useCallback((msg: MessageData) => {
+    inputBarRef.current?.fillText?.(msg.content);
+  }, []);
+
+  // ── Rewrite: AI message → open edit modal ──
+  const handleRewriteAi = useCallback((msg: MessageData) => {
+    setEditingMessage(msg);
+    setActiveModal("editAiMessage");
+  }, []);
+
+  // ── Save edited AI message ──
+  const handleSaveAiMessage = useCallback(async (newContent: string): Promise<boolean> => {
+    if (!editingMessage || !token) return false;
+    try {
+      const res = await fetch(`/api/messages/${editingMessage.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        body: JSON.stringify({ content: newContent }),
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      if (data.success) {
+        setMessages(prev => prev.map(m => m.id === editingMessage.id ? { ...m, content: newContent } : m));
+        setEditingMessage(null);
+        setActiveModal(null);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }, [editingMessage, token]);
+
   // ── Refresh memory ──
   const handleRestart = useCallback(async () => {
     if (!token) return;
@@ -425,7 +483,19 @@ export function ChatClient({ characterId }: { characterId: string }) {
 
   // ── Main chat layout ──
   return (
-    <div className="flex flex-col h-dvh bg-stone-50">
+    <div className="relative flex flex-col h-dvh overflow-hidden">
+      {/* ── Background image layer ── */}
+      {backgroundUrl && (
+        <img
+          src={backgroundUrl}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none select-none"
+          onError={() => setBackgroundUrl(null)}
+        />
+      )}
+      {/* ── No full-screen overlay: readability via component-level frosted glass ── */}
+      {/* ── Content layer ── */}
+      <div className="relative z-[2] flex flex-col h-dvh">
       {character && !showGreeting && (
         <CharacterHeader
           name={character.name ?? ""}
@@ -452,6 +522,10 @@ export function ChatClient({ characterId }: { characterId: string }) {
             <button onClick={async () => { setMenuOpen(false); setActiveModal("memories"); setFetchingMemories(true); try { const r = await fetch("/api/chat/" + characterId + "/memories", { headers: { Authorization: "Bearer " + token! } }); const d = await r.json(); if (d.success) setMemories(d.data ?? []); } catch {} setFetchingMemories(false); }} className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 transition-colors flex items-center gap-2.5">
               <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M7.5 2v3M10.5 5l-3 3-3-3"/><rect x="2" y="6" width="11" height="7" rx="1"/></svg>
               角色记忆
+            </button>
+            <button onClick={() => { setMenuOpen(false); setActiveModal("background"); }} className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 transition-colors flex items-center gap-2.5">
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="1.5" y="2.5" width="12" height="10" rx="1.5"/><circle cx="5" cy="6" r="1.5"/><path d="M13.5 9.5l-3-3-4 4"/></svg>
+              聊天背景
             </button>
             <button onClick={() => { setMenuOpen(false); setActiveModal("export"); }} className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 transition-colors flex items-center gap-2.5">
               <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M7.5 1.5v9M4.5 7l3 3.5 3-3.5"/><path d="M2.5 12v1a1 1 0 001 1h8a1 1 0 001-1v-1"/></svg>
@@ -497,7 +571,7 @@ export function ChatClient({ characterId }: { characterId: string }) {
 
           {/* Start button */}
           <button
-            onClick={() => { setGreetingDismissed(true); const g = character?.greeting; if (g) { const p = g.split("<START>")[0]?.trim(); if (p) { const messageId = "greeting-"+Date.now(); setMessages([{id:messageId,role:"ASSISTANT",content:p,createdAt:new Date().toISOString()}]); fetch(`/api/chat/${characterId}/message`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: messageId, role: 'ASSISTANT', content: p, createdAt: new Date().toISOString() }) }); } } }}
+            onClick={() => { setGreetingDismissed(true); const g = character?.greeting; if (g) { const p = g.split("<START>")[0]?.trim(); if (p) { const messageId = "greeting-"+Date.now(); setMessages([{id:messageId,role:"ASSISTANT",content:p,createdAt:new Date().toISOString()}]); fetch(`/api/chat/${characterId}/message`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ id: messageId, role: 'ASSISTANT', content: p, createdAt: new Date().toISOString() }) }); } } }}
             className="inline-flex items-center gap-2 rounded-full bg-neutral-900 px-8 py-3 text-sm font-medium text-stone-50 transition-all duration-200 hover:bg-neutral-800 active:scale-[0.97] shadow-lg shadow-neutral-900/10"
           >
             开始对话
@@ -517,6 +591,8 @@ export function ChatClient({ characterId }: { characterId: string }) {
           onRegenerate={handleRegenerate}
           onContinue={handleContinue}
           onSuggest={handleSuggest}
+          onRewriteUser={handleRewriteUser}
+          onRewriteAi={handleRewriteAi}
         />
       )}
 
@@ -606,7 +682,7 @@ export function ChatClient({ characterId }: { characterId: string }) {
                           {mem.category === "FACT" ? "📋" : mem.category === "PREFERENCE" ? "❤️" : "📅"}
                         </span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-neutral-800 leading-relaxed">{mem.content}</p>
+                          <p className="text-sm text-neutral-800 leading-relaxed">{mem.content.replace(/^用户/, "你")}</p>
                           <div className="flex items-center gap-2 mt-1.5">
                             <span className="text-[10px] text-stone-400">{mem.category === "FACT" ? "事实" : mem.category === "PREFERENCE" ? "偏好" : "事件"}</span>
                             <div className="flex-1 h-1 bg-stone-100 rounded-full overflow-hidden">
@@ -626,7 +702,155 @@ export function ChatClient({ characterId }: { characterId: string }) {
           </div>
         </div>
       )}
+
+      {/* ── Background Settings Modal ── */}
+      {activeModal === "background" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setActiveModal(null)} />
+          <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white shadow-xl flex flex-col">
+            <div className="p-5 border-b border-stone-100">
+              <p className="text-base font-semibold text-neutral-900">聊天背景</p>
+              <p className="text-xs text-stone-400 mt-1">为当前角色设置专属聊天背景</p>
+            </div>
+            <div className="p-4">
+              {/* 预览区 */}
+              <div className="relative w-full h-40 rounded-xl border border-stone-200 overflow-hidden bg-stone-50">
+                {backgroundUrl ? (
+                  <img src={backgroundUrl} alt="背景预览" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-stone-300 text-sm">默认背景</div>
+                )}
+              </div>
+              {/* 操作按钮 */}
+              <div className="mt-4 space-y-2.5">
+                <label className="block w-full rounded-lg bg-neutral-900 py-2.5 text-sm font-medium text-stone-50 text-center hover:bg-neutral-800 transition-colors cursor-pointer">
+                  上传背景
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 5 * 1024 * 1024) {
+                        alert("图片大小不能超过5MB");
+                        return;
+                      }
+                      try {
+                        const formData = new FormData();
+                        formData.append("file", file);
+                        const uploadRes = await fetch("/api/upload", {
+                          method: "POST",
+                          headers: { Authorization: "Bearer " + token! },
+                          body: formData,
+                        });
+                        const uploadData = await uploadRes.json();
+                        if (!uploadData.success) { alert(uploadData.error || "上传失败"); return; }
+                        const url = uploadData.data?.url;
+                        if (!url || typeof url !== "string") {
+                          alert("上传接口未返回有效URL");
+                          return;
+                        }
+                        const saveRes = await fetch(`/api/characters/${characterId}/settings`, {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json", Authorization: "Bearer " + token! },
+                          body: JSON.stringify({ backgroundUrl: url }),
+                        });
+                        const saveData = await saveRes.json();
+                        if (saveData.success) {
+                          setBackgroundUrl(url);
+                          alert("背景设置成功");
+                        } else { alert(saveData.error || "保存失败"); }
+                      } catch { alert("操作失败，请重试"); }
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+                {backgroundUrl && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(`/api/characters/${characterId}/settings`, {
+                          method: "DELETE",
+                          headers: { Authorization: "Bearer " + token! },
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                          setBackgroundUrl(null);
+                          alert("已恢复默认背景");
+                        } else { alert(data.error || "操作失败"); }
+                      } catch { alert("操作失败，请重试"); }
+                    }}
+                    className="w-full rounded-lg border border-stone-200 py-2.5 text-sm font-medium text-stone-600 hover:bg-stone-50 transition-colors"
+                  >
+                    恢复默认
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="p-3 border-t border-stone-100">
+              <button onClick={() => setActiveModal(null)} className="w-full rounded-lg bg-neutral-900 py-2.5 text-sm font-medium text-stone-50 hover:bg-neutral-800 transition-colors">关闭</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit AI Message Modal ── */}
+      {activeModal === "editAiMessage" && editingMessage && (
+        <EditAiMessageModal
+          initialContent={editingMessage.content}
+          onSave={handleSaveAiMessage}
+          onCancel={() => { setEditingMessage(null); setActiveModal(null); }}
+        />
+      )}
+      </div>{/* end content layer z-[2] */}
       <BottomNav current="chat" />
+    </div>
+  );
+}
+
+// ─── Edit AI Message Modal ────────────────────────────────────
+
+function EditAiMessageModal({ initialContent, onSave, onCancel }: {
+  initialContent: string;
+  onSave: (content: string) => Promise<boolean>;
+  onCancel: () => void;
+}) {
+  const [content, setContent] = useState(initialContent);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+      <div className="absolute inset-0 bg-black/40" onClick={onCancel} />
+      <div className="relative z-10 w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        <p className="text-sm font-medium text-neutral-900 mb-3">编辑角色回复</p>
+        <textarea
+          className="w-full h-48 rounded-lg border border-stone-200 bg-stone-50 p-3 text-sm text-neutral-800 leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-neutral-300"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+        />
+        {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+        <div className="flex gap-2.5 mt-4">
+          <button
+            onClick={onCancel}
+            className="flex-1 rounded-lg border border-stone-200 bg-white py-2.5 text-sm text-stone-500 hover:bg-stone-50 transition-colors"
+          >取消</button>
+          <button
+            onClick={async () => {
+              setSaving(true);
+              setError(null);
+              const ok = await onSave(content);
+              if (!ok) {
+                setSaving(false);
+                setError("保存失败，请重试");
+              }
+            }}
+            disabled={saving || content.trim() === ""}
+            className="flex-1 rounded-lg bg-neutral-900 py-2.5 text-sm font-medium text-stone-50 hover:bg-neutral-800 transition-colors disabled:opacity-50"
+          >{saving ? "保存中…" : "保存"}</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -651,7 +875,7 @@ function BottomNav({ current }: { current: "characters" | "chat" | "shop" | "me"
   ] as const;
 
   return (
-    <nav className="flex-shrink-0 flex items-center justify-around border-t border-stone-200 bg-stone-50 h-14">
+    <nav className="flex-shrink-0 flex items-center justify-around border-t border-white/30 bg-white/60 backdrop-blur-md h-14">
       {tabs.map((tab) => {
         const isActive = tab.key === current;
         return (

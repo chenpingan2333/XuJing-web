@@ -1,4 +1,51 @@
-﻿/** Generate RFC 9562 compliant UUID v7 using Web Crypto API.
+import { sql, type SQL } from "drizzle-orm";
+import type { PgTableWithColumns } from "drizzle-orm/pg-core";
+
+/**
+ * 软删除表类型约束：表必须包含 deletedAt 字段
+ */
+export type SoftDeletableTable = PgTableWithColumns<{
+  name: string;
+  schema: string | undefined;
+  dialect: "pg";
+  columns: {
+    deletedAt: {
+      name: string;
+      dataType: "date";
+      columnType: string;
+      data: Date | null;
+      driverParam: string;
+      notNull: false;
+      hasDefault: false;
+      enumValues: undefined;
+      baseColumn: never;
+    };
+    [key: string]: any;
+  };
+}>;
+
+/**
+ * 生成 `deleted_at IS NULL` 条件，用于查询时过滤已软删除的记录。
+ *
+ * 用法示例:
+ *   import { eq, and } from "drizzle-orm";
+ *   import { withNotDeleted } from "@/db/helpers";
+ *   import { messages } from "@/db/schema";
+ *
+ *   db.select()
+ *     .from(messages)
+ *     .where(and(eq(messages.userId, userId), withNotDeleted(messages)));
+ *
+ * @param table - 支持 soft delete 的表对象（必须包含 deletedAt 字段）
+ * @returns SQL 片段 `${table.deletedAt} IS NULL`
+ */
+export function withNotDeleted(
+  table: SoftDeletableTable
+): SQL {
+  return sql`${table.deletedAt} IS NULL`;
+}
+
+/** Generate RFC 9562 compliant UUID v7 using Web Crypto API.
  *  Fully portable across Node.js, Edge, and browser runtimes. */
 export function uuidv7(): string {
   const bytes = new Uint8Array(16);

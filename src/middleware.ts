@@ -56,6 +56,9 @@ export async function middleware(req: NextRequest) {
     return authError("Token revoked", 401);
   }
 
+  if (!payload.sub || typeof payload.sub !== "string" || payload.sub.trim() === "") {
+    return authError("Invalid token: missing subject", 401);
+  }
   const user = await getUserOrNull(payload.sub);
   if (!user) return authError("User not found", 401);
   if (user.status === "BANNED") return authError("Account suspended", 403);

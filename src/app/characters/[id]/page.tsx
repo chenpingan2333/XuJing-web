@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useAuth } from "@/lib/use-auth";
 import { useRouter } from "next/navigation";
@@ -17,8 +17,6 @@ const LIMITS = {
   post_history_instructions: 10000,
 };
 
-// TODO: Phase 7.2 — 实现头像上传服务 (POST /api/characters/avatar)
-// 当前版本仅保留头像预览功能。
 
 export default function EditCharacterPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -53,6 +51,7 @@ export default function EditCharacterPage({ params }: { params: Promise<{ id: st
 
   // Avatar preview only — separate from avatar_url
   const [avatarPreview, setAvatarPreview] = useState("");
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   const fetchCharacter = useCallback(async () => {
     if (!token || !id) return;
@@ -96,10 +95,38 @@ export default function EditCharacterPage({ params }: { params: Promise<{ id: st
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) { setError("头像文件不能超过 10MB"); return; }
-    // 仅预览，需要上传服务获取 URL
+    if (!file.type.match(/^image\/(jpeg|png|webp)$/)) { setError("仅支持 jpg/png/webp 格式"); return; }
+
+    // 本地预览
     const reader = new FileReader();
     reader.onload = () => { setAvatarPreview(reader.result as string); };
     reader.readAsDataURL(file);
+
+    // 立即上传到服务器
+    try {
+      setAvatarUploading(true);
+      setError("");
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token },
+        body: formData,
+      });
+      const uploadData = await res.json();
+      if (uploadData.success && uploadData.data?.url) {
+        // 将相对路径转为完整URL，确保后端Zod url()验证通过
+        const fullUrl = new URL(uploadData.data.url, window.location.origin).href;
+        setAvatarUrl(fullUrl);
+        setAvatarPreview(fullUrl);
+      } else {
+        setError(uploadData.error || "头像上传失败");
+      }
+    } catch {
+      setError("头像上传失败，请重试");
+    } finally {
+      setAvatarUploading(false);
+    }
   };
 
   useEffect(() => {
@@ -238,16 +265,14 @@ export default function EditCharacterPage({ params }: { params: Promise<{ id: st
                 )}
               </div>
               {!isOfficial && (
-                <label className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 cursor-pointer hover:bg-gray-50">
-                  更换图片（预览）
-                  <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarFile} className="hidden" />
+                <label className={`rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 cursor-pointer hover:bg-gray-50 ${avatarUploading ? "opacity-50 pointer-events-none" : ""}`}>
+                  {avatarUploading ? "上传中…" : "更换图片"}
+                  <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarFile} className="hidden" disabled={avatarUploading} />
                 </label>
               )}
               <span className="text-xs text-gray-400">jpg/png/webp</span>
             </div>
-            {!isOfficial && (
-              <p className="text-xs text-gray-400 mt-1">头像上传功能即将上线，当前仅支持预览</p>
-            )}
+
           </div>
 
           <div className="mb-4">

@@ -137,6 +137,8 @@ export class MemoryEngine {
     fallbackConfig?: ApiConfig | null,
   ): Promise<void> {
     try {
+      console.log("[MEMORY] Starting memory extraction for character:", characterId, "user:", userId);
+      
       // 1. 获取最近消息
       const recentMessages = await messageRepository.findHistory(
         characterId,
@@ -144,7 +146,10 @@ export class MemoryEngine {
         messageCount,
       );
 
-      if (recentMessages.length < 4) return; // 消息太少，跳过
+      if (recentMessages.length < 4) {
+        console.log("[MEMORY] Not enough messages for extraction:", recentMessages.length);
+        return; // 消息太少，跳过
+      }
 
       const reversed = [...recentMessages].reverse();
 
@@ -164,7 +169,7 @@ export class MemoryEngine {
         modelId = fallbackConfig.modelId;
       }
       if (!apiKey) {
-        console.warn("[memory-engine] No API key available for memory extraction. Set PLATFORM_API_KEY or provide user API config.");
+        console.warn("[MEMORY] No API key available for memory extraction. Set PLATFORM_API_KEY or provide user API config.");
         return;
       }; // 无可用 API Key，静默跳过
 
@@ -182,11 +187,21 @@ export class MemoryEngine {
         MEMORY_EXTRACTOR_PROMPT,
       );
 
-      if (!responseText) return;
+      console.log("[MEMORY] LLM response received, length:", responseText?.length || 0);
+      
+      if (!responseText) {
+        console.log("[MEMORY] Empty response from LLM, skipping");
+        return;
+      }
 
       // 5. 解析 JSON
       const extracted = this._parseResponse(responseText);
-      if (!extracted || extracted.memories.length === 0) return;
+      console.log("[MEMORY] Parsed memories count:", extracted?.memories?.length || 0);
+      
+      if (!extracted || extracted.memories.length === 0) {
+        console.log("[MEMORY] No valid memories extracted");
+        return;
+      }
 
       // 6. 去重：过滤已有记忆
       const existing = await memoryRepository.findByCharacter(characterId, userId, 200);
@@ -196,7 +211,10 @@ export class MemoryEngine {
         (mem) => !existingContents.has(mem.content) && mem.content.length >= 4,
       );
 
-      if (newMemories.length === 0) return;
+      if (newMemories.length === 0) {
+        console.log("[MEMORY] All extracted memories are duplicates");
+        return;
+      }
 
       // 7. 容量管理
       const user = await userRepository.findById(userId);
@@ -217,9 +235,10 @@ export class MemoryEngine {
           importance: mem.category === "EVENT" ? "0.70" : "0.50",
           referenceIds: [],
         });
+        console.log("[MEMORY] Created new memory:", mem.content, "category:", mem.category);
       }
     } catch (err) {
-      console.error("[memory-engine] extractAndPersist failed:", err instanceof Error ? err.message : String(err));
+      console.error("[MEMORY] extractAndPersist failed:", err instanceof Error ? err.message : String(err));
     }
   }
 

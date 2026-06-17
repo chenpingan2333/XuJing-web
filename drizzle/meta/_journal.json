@@ -15,6 +15,13 @@
       "when": 1781008263024,
       "tag": "0001_unique_blonde_phantom",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781591982332,
+      "tag": "0002_flawless_sue_storm",
+      "breakpoints": true
     }
   ]
 }

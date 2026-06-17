@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { apiConfigs } from "@/db/schema/api-configs";
 import { eq, and } from "drizzle-orm";
+import { assetService } from "@/services/AssetService";
 
 export class ApiConfigRepository {
   async findById(id: string) {
@@ -92,8 +93,12 @@ export class ApiConfigRepository {
     await db.update(apiConfigs).set({ isActive: false }).where(eq(apiConfigs.userId, userId));
   }
 
-  async delete(id: string) {
-    await db.delete(apiConfigs).where(eq(apiConfigs.id, id));
+  async delete(id: string, options: { actorId?: string; actorIp?: string; actorUa?: string; requestMethod?: string; requestPath?: string; reason?: string } = {}) {
+    const result = await assetService.softDeleteApiConfig(id, options);
+    if (!result.success) {
+      throw new Error(result.error ?? "Failed to soft delete api config");
+    }
+    return result;
   }
 }
 

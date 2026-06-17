@@ -16,6 +16,7 @@ import { vipRecords } from "./schema/vip-records";
 import { adminLogs } from "./schema/admin-logs";
 import { conversations } from "./schema/conversations";
 import { starDiamondTransactions } from "./schema/star-diamond-transactions";
+import { userCharacterSettings } from "./schema/user-character-settings";
 
 // ─── User ────────────────────────────────────────────
 export const usersRelations = relations(users, ({ many }) => ({
@@ -25,6 +26,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   vipRecords: many(vipRecords),
   adminLogs: many(adminLogs),
   starDiamondTransactions: many(starDiamondTransactions),
+  userCharacterSettings: many(userCharacterSettings),
 }));
 
 // ─── Character ────────────────────────────────────────
@@ -36,6 +38,7 @@ export const charactersRelations = relations(characters, ({ one, many }) => ({
   }),
   messages: many(messages),
   memories: many(memories),
+  userCharacterSettings: many(userCharacterSettings),
 }));
 
 // ─── Message ──────────────────────────────────────────
@@ -112,5 +115,17 @@ export const starDiamondTransactionsRelations = relations(starDiamondTransaction
   user: one(users, {
     fields: [starDiamondTransactions.userId],
     references: [users.id],
+  }),
+}));
+
+// ─── UserCharacterSetting ─────────────────────────────
+export const userCharacterSettingsRelations = relations(userCharacterSettings, ({ one }) => ({
+  user: one(users, {
+    fields: [userCharacterSettings.userId],
+    references: [users.id],
+  }),
+  character: one(characters, {
+    fields: [userCharacterSettings.characterId],
+    references: [characters.id],
   }),
 }));

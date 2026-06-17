@@ -6,6 +6,7 @@ interface ActionButtonsProps {
   onRegenerate?: () => void;
   onContinue?: () => void;
   onSuggest?: () => void;
+  onRewrite?: () => void;
 }
 
 export function ActionButtons({
@@ -14,6 +15,7 @@ export function ActionButtons({
   onRegenerate,
   onContinue,
   onSuggest,
+  onRewrite,
 }: ActionButtonsProps) {
   const isBusy = loading && activeAction !== null;
 
@@ -81,6 +83,26 @@ export function ActionButtons({
             <path d="M6 1.5l.9 2.7 2.8.2-2.2 1.8.7 2.8L6 7.5 3.8 9l.7-2.8-2.2-1.8 2.8-.2L6 1.5z" fill="currentColor" fillOpacity="0.2" />
           </svg>
           <span>灵感</span>
+        </button>
+      )}
+
+      {/* 改写 — 仅在有 handler 时显示 */}
+      {onRewrite && (
+        <button
+          onClick={onRewrite}
+          disabled={isBusy}
+          title="改写回复"
+          className={
+            "flex items-center gap-1 h-7 rounded-md px-2 text-[11px] font-medium transition-colors duration-150 " +
+            (isBusy
+              ? "text-stone-200 cursor-not-allowed"
+              : "text-stone-400 hover:text-stone-600 hover:bg-stone-200")
+          }
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+            <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.05 10.476a.75.75 0 0 0-.188.335l-.834 2.89a.25.25 0 0 0 .306.306l2.89-.834a.75.75 0 0 0 .335-.188l7.963-7.963a1.75 1.75 0 0 0 0-2.475Zm-1.414 1.06a.25.25 0 0 1 .354 0l.596.596a.25.25 0 0 1 0 .354L5.94 12.018l-1.89.545.545-1.89 8.479-8.5Z" />
+          </svg>
+          <span>改写</span>
         </button>
       )}
     </div>

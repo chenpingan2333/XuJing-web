@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ApiConfigService — API configuration management
  *
  * AES encryption completed at Service layer; Repository never touches plaintext keys.
@@ -53,10 +53,10 @@ export class ApiConfigService {
     return apiConfigRepository.update(configId, updateData as any);
   }
 
-  async deleteConfig(userId: string, configId: string) {
+  async deleteConfig(userId: string, configId: string, options: { actorId?: string; actorIp?: string; actorUa?: string; requestMethod?: string; requestPath?: string; reason?: string } = {}) {
     const config = await apiConfigRepository.findById(configId);
     if (!config || config.userId !== userId) throw new Error("Unauthorized");
-    return apiConfigRepository.delete(configId);
+    return apiConfigRepository.delete(configId, { actorId: options.actorId ?? userId, ...options });
   }
 
   async setDefaultConfig(userId: string, configId: string) {

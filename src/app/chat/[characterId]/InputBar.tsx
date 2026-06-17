@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from "react";
 
@@ -52,7 +52,7 @@ export const InputBar = forwardRef<InputBarHandle, InputBarProps>(
     };
 
     return (
-      <div className="px-4 py-3 border-t border-stone-200 bg-stone-50">
+      <div className="px-4 py-3 border-t border-stone-200 bg-white/60 backdrop-blur-md">
         <div className="flex items-end gap-2">
           <textarea
             ref={inputRef}

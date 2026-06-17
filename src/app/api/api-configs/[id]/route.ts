@@ -1,4 +1,4 @@
-﻿/**
+/**
  * GET    /api/api-configs/[id] — 详情
  * PUT    /api/api-configs/[id] — 更新
  * DELETE /api/api-configs/[id] — 删除
@@ -101,8 +101,17 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   if (config instanceof Response) return config;
 
   try {
-    await apiConfigService.deleteConfig(auth.userId, id);
-    return jsonOk({ deleted: true });
+    const actorIp = req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "unknown";
+    const actorUa = req.headers.get("user-agent") ?? "unknown";
+    const result = await apiConfigService.deleteConfig(auth.userId, id, {
+      actorId: auth.userId,
+      actorIp,
+      actorUa,
+      requestMethod: "DELETE",
+      requestPath: `/api/api-configs/${id}`,
+      reason: "User deleted api config",
+    });
+    return jsonOk({ deleted: true, affectedCount: result.affectedCount });
   } catch (err) {
     return jsonErr(err instanceof Error ? err.message : "Delete failed", 500);
   }

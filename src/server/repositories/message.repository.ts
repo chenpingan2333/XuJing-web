@@ -1,6 +1,8 @@
 import { db } from "@/db";
 import { messages } from "@/db/schema/messages";
 import { eq, and, desc } from "drizzle-orm";
+import { assetService } from "@/services/AssetService";
+import type { SoftDeleteOptions } from "@/services/AssetService";
 
 export class MessageRepository {
   async findById(id: string) {
@@ -17,19 +19,36 @@ export class MessageRepository {
     return result;
   }
 
-  async deleteMessage(id: string) {
-    await db.delete(messages).where(eq(messages.id, id));
+  async deleteMessage(id: string, options: SoftDeleteOptions = {}) {
+    const result = await assetService.softDeleteMessage(id, options);
+    if (!result.success) {
+      throw new Error(`Failed to soft delete message ${id}: ${result.error ?? 'unknown error'}`);
+    }
+    return result;
+  }
+
+  /** 更新消息内容 */
+  async updateContent(id: string, content: string) {
+    const [result] = await db.update(messages).set({ content }).where(eq(messages.id, id)).returning();
+    return result ?? null;
   }
 
   /** 重生成：删除该角色最近的 ASSISTANT 消息 */
   
-  async deleteAllByCharacter(characterId: string, userId: string) {
-    await db.delete(messages).where(and(eq(messages.characterId, characterId), eq(messages.userId, userId)));
+  async deleteAllByCharacter(characterId: string, userId: string, options: SoftDeleteOptions = {}) {
+    const result = await assetService.softDeleteMessagesByCharacter(characterId, userId, options);
+    if (!result.success) {
+      throw new Error(`Failed to soft delete messages for character ${characterId}: ${result.error ?? 'unknown error'}`);
+    }
+    return result;
   }
-async deleteLastAssistant(characterId: string, userId: string) {
+async deleteLastAssistant(characterId: string, userId: string, options: SoftDeleteOptions = {}) {
     const [last] = await db.select().from(messages).where(and(eq(messages.characterId, characterId), eq(messages.userId, userId), eq(messages.role, "ASSISTANT"))).orderBy(desc(messages.createdAt)).limit(1);
     if (last) {
-      await db.delete(messages).where(eq(messages.id, last.id));
+      const result = await assetService.softDeleteLastAssistantMessage(characterId, userId, options);
+      if (!result.success) {
+        throw new Error(`Failed to soft delete last assistant message for character ${characterId}: ${result.error ?? 'unknown error'}`);
+      }
     }
     return last ?? null;
   }

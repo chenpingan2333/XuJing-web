@@ -14,6 +14,7 @@ import { requireAuth } from "../../_base/auth";
 import { messageRepository } from "@/server/repositories/message.repository";
 import { characterRepository } from "@/server/repositories/character.repository";
 import { memoryRepository } from "@/server/repositories/memory.repository";
+import { assetService } from "@/services/AssetService";
 
 export async function GET(
   req: Request,
@@ -90,10 +91,18 @@ export async function DELETE(
     return jsonErr("无权操作", 403);
   }
 
-  const { db } = await import("@/db");
-  const { messages } = await import("@/db/schema/messages");
-  const { and, eq } = await import("drizzle-orm");
-  await db.delete(messages).where(and(eq(messages.characterId, characterId), eq(messages.userId, auth.userId)));
+  const result = await assetService.softDeleteMessagesByCharacter(characterId, auth.userId, {
+    actorId: auth.userId,
+    actorIp: req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "unknown",
+    actorUa: req.headers.get("user-agent") ?? undefined,
+    requestMethod: "DELETE",
+    requestPath: `/api/chat/${characterId}`,
+    reason: "用户清除聊天记录",
+  });
 
-  return jsonOk({ deleted: true });
+  if (!result.success) {
+    return jsonErr(result.error ?? "删除失败", 500);
+  }
+
+  return jsonOk({ deleted: true, affectedCount: result.affectedCount });
 }

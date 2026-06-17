@@ -241,7 +241,8 @@ export default function NewCharacterPage() {
           });
           const uploadData = await uploadRes.json();
           if (!uploadData.success) { setError(uploadData.error || "头像上传失败"); setSaving(false); setAvatarUploading(false); return; }
-          avatarUrl = uploadData.data.url;
+          // 将相对路径转为完整URL，确保后端Zod url()验证通过
+          avatarUrl = new URL(uploadData.data.url, window.location.origin).href;
         } catch { setError("头像上传失败，请重试"); setSaving(false); setAvatarUploading(false); return; }
         setAvatarUploading(false);
       }
