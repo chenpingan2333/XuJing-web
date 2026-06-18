@@ -88,22 +88,39 @@ export class MemoryRetriever {
       return all.slice(0, topK);
     }
 
-    // 计分：每条记忆匹配到的关键词数 + importance 加权
+    // 计分：关键词长度加权 + importance 加权（拆分 keywordScore / importanceBonus）
     const scored = all.map((mem) => {
-      let score = 0;
+      let keywordScore = 0;
+      const hitKeywords: string[] = [];
       for (const kw of keywords) {
-        if (mem.content.includes(kw)) score += 1;
+        if (mem.content.includes(kw)) {
+          // 按关键词长度加权：1字+0.3, 2字+1.0, 3字+2.0
+          const len = kw.length;
+          if (len === 1) keywordScore += 0.3;
+          else if (len === 2) keywordScore += 1.0;
+          else if (len >= 3) keywordScore += 2.0;
+          hitKeywords.push(kw);
+        }
       }
-      // importance 作为次要排序因子
-      score += Number(mem.importance ?? "0.50") * 0.1;
-      return { memory: mem, score };
+      const importance = Number(mem.importance ?? "0.50");
+      const importanceBonus = importance * 0.1;
+      const score = keywordScore + importanceBonus;
+      return { memory: mem, score, keywordScore, importanceBonus, hitKeywords };
     });
 
     // 按 score DESC, importance DESC 排序
     scored.sort((a, b) => b.score - a.score || Number(b.memory.importance ?? 0) - Number(a.memory.importance ?? 0));
 
-    const result = scored.slice(0, topK).map((s) => s.memory);
-    const matched = scored.filter((s) => s.score > Number(s.memory.importance ?? 0.50) * 0.1).length;
+    // 最低命中阈值：keywordScore > 0 || importance >= 0.8
+    const eligible = scored.filter((s) => s.keywordScore > 0 || Number(s.memory.importance ?? 0) >= 0.8);
+    const result = eligible.slice(0, topK).map((s) => s.memory);
+    // 命中关键词日志
+    for (const s of eligible.slice(0, topK)) {
+      if (s.hitKeywords.length > 0) {
+        console.log("[MemoryRetrieveHit] characterId=%s memoryId=%s keywordScore=%.1f importanceBonus=%.2f hits=%s", characterId, s.memory.id, s.keywordScore, s.importanceBonus, s.hitKeywords.join(","));
+      }
+    }
+    const matched = eligible.length;
     console.log("[MemoryRetrieve] characterId=%s userId=%s query=\"%s\" candidates=%d matched=%d returned=%d", characterId, userId, userInput, all.length, matched, result.length);
     return result;
   }
@@ -112,6 +129,10 @@ export class MemoryRetriever {
     const cleaned = text.replace(/[，。！？、\s\n\r"''""【】（）\(\)\[\]{}]/g, "");
     if (cleaned.length < 2) return [];
     const keywords = new Set<string>();
+    // 1-char windows (single characters for recall coverage)
+    for (let i = 0; i < cleaned.length; i++) {
+      keywords.add(cleaned.substring(i, i + 1));
+    }
     // 2-char windows
     for (let i = 0; i < cleaned.length - 1; i++) {
       keywords.add(cleaned.substring(i, i + 2));
@@ -120,7 +141,7 @@ export class MemoryRetriever {
     for (let i = 0; i < cleaned.length - 2; i++) {
       keywords.add(cleaned.substring(i, i + 3));
     }
-    return [...keywords];
+    return Array.from(new Set(keywords));
   }
 }
 
