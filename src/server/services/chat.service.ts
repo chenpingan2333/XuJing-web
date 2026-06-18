@@ -264,10 +264,18 @@ export class ChatService {
       return;
     }
 
-    const memories = await memoryRetriever.retrieve(characterId, userId, "", MEMORY_TOP_K);
     const historyMessages = await messageRepository.findHistory(characterId, userId, HISTORY_FETCH_LIMIT);
 
-    const systemPrompt = this._buildSuggestionSystemPrompt({
+    // P1-C: Use last user message as memory query (same as getSuggestedReply)
+    const lastUserMessage =
+      historyMessages
+        .filter(m => m.role === "USER")
+        .at(-1)?.content ?? "";
+
+    const memories = await memoryRetriever.retrieve(characterId, userId, lastUserMessage, MEMORY_TOP_K);
+
+    // P1-C: Use _buildSystemPrompt (same as sendMessage) instead of _buildSuggestionSystemPrompt
+    const systemPrompt = this._buildSystemPrompt({
       mainPrompt: character.mainPrompt,
       setting: character.setting,
       personality: character.personality,
@@ -279,7 +287,7 @@ export class ChatService {
       greeting: character.greeting,
       extraFields: character.extraFields as Record<string, unknown> | null,
       postHistoryInstructions: character.postHistoryInstructions,
-    }, historyMessages, 10, user?.personaSetting ?? undefined);
+    }, user?.personaSetting ?? undefined);
 
     const chatMessages = [...historyMessages].reverse().map((m) => ({
       role: m.role === "USER" ? ("user" as const) : ("assistant" as const),
@@ -290,6 +298,30 @@ export class ChatService {
     if (memories.length > 0) {
       fullSystemPrompt += "\n\n" + MEMORY_HEADER + "\n";
       for (const mem of memories) fullSystemPrompt += "- " + mem.content + "\n";
+    }
+
+    // ─── P1-C: Token-Aware Context Budget (same as sendMessage) ───
+    const sysLen = fullSystemPrompt.length;
+    const msgChars = chatMessages.reduce((sum, m) => sum + m.content.length, 0);
+    const reservedForReply = 4000;
+
+    if (sysLen + msgChars > MAX_CONTEXT_CHARS - reservedForReply) {
+      const budget = MAX_CONTEXT_CHARS - reservedForReply - sysLen;
+      let used = 0;
+      const trimmed: typeof chatMessages = [];
+      for (let i = chatMessages.length - 1; i >= 0; i--) {
+        const m = chatMessages[i];
+        if (used + m.content.length <= budget) {
+          trimmed.unshift(m);
+          used += m.content.length;
+        } else {
+          break;
+        }
+      }
+      if (trimmed.length > 0) {
+        chatMessages.length = 0;
+        chatMessages.push(...trimmed);
+      }
     }
 
     chatMessages.push({ role: "user", content: "（请重新回复上一条消息）" });
