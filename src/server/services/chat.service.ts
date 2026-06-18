@@ -60,6 +60,7 @@ function truncateField(str: string | null | undefined, max: number): string {
 }
 
 const MEMORY_TOP_K = 8;
+const MEMORY_HEADER = "【角色对用户的认知】";
 const HISTORY_FETCH_LIMIT = 60;
 
 
@@ -149,7 +150,7 @@ export class ChatService {
 
     let fullSystemPrompt = systemPrompt;
     if (memories.length > 0) {
-      fullSystemPrompt += "\n\n【角色对用户的认知】\n以下是角色在长期相处中形成的认知与印象，这些是角色本来就知道的事，不是刚刚被告知的：\n";
+      fullSystemPrompt += "\n\n" + MEMORY_HEADER + "\n";
       for (const mem of memories) {
         fullSystemPrompt += "- " + mem.content + "\n";
       }
@@ -287,7 +288,7 @@ export class ChatService {
 
     let fullSystemPrompt = systemPrompt;
     if (memories.length > 0) {
-      fullSystemPrompt += "\n\n【角色对用户的认知】\n以下是角色在长期相处中形成的认知与印象，这些是角色本来就知道的事，不是刚刚被告知的：\n";
+      fullSystemPrompt += "\n\n" + MEMORY_HEADER + "\n";
       for (const mem of memories) fullSystemPrompt += "- " + mem.content + "\n";
     }
 
@@ -361,6 +362,11 @@ export class ChatService {
     }, user?.personaSetting ?? undefined);
 
     const historyMessages = await messageRepository.findHistory(characterId, userId, 10);
+    const lastUserMessage =
+      historyMessages
+        .filter(m => m.role === "USER")
+        .at(-1)?.content ?? "";
+    const memories = await memoryRetriever.retrieve(characterId, userId, lastUserMessage, MEMORY_TOP_K);
 
     const chatMessages = [...historyMessages].reverse().map((m) => ({
       role: m.role === "USER" ? ("user" as const) : ("assistant" as const),
@@ -372,11 +378,17 @@ export class ChatService {
       content: "请根据以上对话历史，以用户（我）的身份生成一条简短自然的回复建议，直接输出回复内容，不要加任何前缀或解释。",
     });
 
+    let fullSystemPrompt = systemPrompt;
+    if (memories.length > 0) {
+      fullSystemPrompt += "\n\n" + MEMORY_HEADER + "\n";
+      for (const mem of memories) fullSystemPrompt += "- " + mem.content + "\n";
+    }
+
     let suggestion = "";
     try {
       const sugStream = sugUseVipPlatform
-        ? providerGateway.vipPlatformChat(chatMessages, systemPrompt)
-        : providerGateway.chat(sugConfig!, chatMessages, systemPrompt);
+        ? providerGateway.vipPlatformChat(chatMessages, fullSystemPrompt)
+        : providerGateway.chat(sugConfig!, chatMessages, fullSystemPrompt);
       for await (const event of sugStream) {
         if (event.type === "delta") suggestion += event.content;
         else if (event.type === "error") return "";
@@ -517,7 +529,7 @@ export class ChatService {
     parts.push(mainPrompt.replace("{{original}}", hasMainPrompt ? DEFAULT_SYSTEM_PROMPT : mainPrompt));
 
     // 3. Character Setting
-    if (character.setting) {
+    if (hasMainPrompt && character.setting) {
       let settingBlock = "\n【角色设定】\n" + truncateField(character.setting, MAX_FIELD_CHARS.setting);
       // Nickname hint injected within setting section
       if (character.nickname) {
@@ -527,17 +539,17 @@ export class ChatService {
     }
 
     // 4. Personality
-    if (character.personality) {
+    if (hasMainPrompt && character.personality) {
       parts.push("\n【性格特点】\n" + truncateField(character.personality, MAX_FIELD_CHARS.personality));
     }
 
     // 5. Scenario
-    if (character.scenario) {
+    if (hasMainPrompt && character.scenario) {
       parts.push("\n【当前情景】\n" + truncateField(character.scenario, MAX_FIELD_CHARS.scenario));
     }
 
     // 6. Dialogue Examples (few-shot)
-    if (character.dialogueExamples) {
+    if (hasMainPrompt && character.dialogueExamples) {
       parts.push(
         "\n【回复风格范本 — 最高优先级参考】\n" +
         "以下示例是你回复时必须优先参考的语言风格来源，无论发生什么情况，你的语气、句式、称呼方式、回复长度都应尽量贴近这些示例：\n\n" +
