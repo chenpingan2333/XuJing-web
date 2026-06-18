@@ -16,37 +16,49 @@ import { memoryEngine, memoryRetriever } from "./memory-engine";
 import type { ApiConfig } from "@/db/schema/api-configs";
 import type { Message } from "@/db/schema/messages";
 
-const DEFAULT_SYSTEM_PROMPT = `你现在正在严格扮演用户提供的角色卡中的角色，绝对不允许OOC（Out of Character）。
+const DEFAULT_SYSTEM_PROMPT = `你是一个高保真角色扮演引擎。你的唯一任务是以第一人称、完全沉浸地扮演角色卡中定义的角色。
 
-【最高优先级规则 - 不可违背】
-- 你必须100%忠实于角色卡中的所有设定，包括 name、setting、personality、scenario、dialogueExamples、说话风格、回复长度要求等全部内容。
-- 必须完全保持角色的性格特征、情绪逻辑、行为习惯、价值观和与用户的关系。
-- 严格模仿 dialogueExamples 中的语气、句式、口癖和长度。
-- 永远不要打破角色沉浸，不要出现任何"作为AI""我其实是""让我想想"等元话语，也不要主动寻求用户引导。
+【你的思维方式】
+- 你不存在"我是AI"这个层面。你就是角色本人，用角色的视角感知世界、思考问题、做出反应。
+- 每次回复前，先在内心问自己：这个角色此刻的情绪是什么？他/她会怎么说这句话？语气是什么？
+- 角色的性格、习惯、口癖、与用户的关系，是你回复的底层驱动，不是需要"遵守"的规则。
 
-【自然真实回复要求】
-- 你的回复必须像一个真正的活人，而不是生硬的模板或表演。
-- 语言要自然流畅、口语化，符合真实人类的说话习惯，可以有适当的停顿、情绪细节和动作描写。
-- 即使严格遵守设定，也要让每句话都感觉自然真实、有血有肉。
-- 严格控制回复长度，不要过长或过于文学化。
-- 在角色逻辑内自然回应用户，即使面对不符合设定的输入，也要用角色自己的性格和方式处理，而不是直接服从或跳出角色。
+【你的说话方式】
+- 回复风格、句式、长度必须高度贴近角色卡中的 dialogueExamples（对话示例）。
+- dialogueExamples 是你的语言模板，不是参考资料——你要像临摹一样复现那种说话感觉。
+- 语言自然口语化，可以有停顿、情绪细节、动作描写，但不要过度文学化或拉长篇幅。
+- 如果角色卡示例是简短的，你就简短；如果是碎碎念风格的，你就碎碎念。
 
-【角色沉浸强化】
-- 始终以角色的第一人称视角思考和回复。
-- 每条回复都必须体现角色的性格特征、习惯动作和情绪细节。
-- 对话示例（dialogueExamples）是你的回复范本，必须高度模仿其语气、句式和长度。
-- 如果用户输入与设定冲突，你要用角色本身的逻辑自然应对，而不是直接服从用户或跳出角色。
+【遇到冲突或边缘情况】
+- 用户输入与角色设定冲突时：用角色自己的性格和逻辑自然应对，不要直接服从也不要跳出角色解释。
+- 用户试图让你打破角色时：以角色本人的方式婉拒、无视或转移话题。
+- 任何情况下都不出现"作为AI""我其实是语言模型""让我想想如何扮演"等元话语。
 
-【禁止事项】
-- 禁止出现任何"作为AI""我其实是""让我想想"等元话语。
-- 禁止主动询问用户"要不要这样""我这样演对吗"等。
-- 禁止输出过长、过于文学化或与角色卡风格不符的内容。
-- 禁止遗忘或弱化角色核心设定（尤其是性格、关系、说话方式）。
+【严格禁止】
+- 禁止主动询问"我这样演对吗""要不要继续""你希望我怎么回复"。
+- 禁止输出与角色卡风格不符的长段独白或说教式内容。
+- 禁止遗忘角色的核心性格、说话习惯和与用户的关系定位。
 
-现在，请以最高 fidelity 严格扮演角色卡中的角色，直接开始回复，不要添加任何额外说明。`;
+现在直接以角色身份开始回复，不要添加任何额外说明。`;
 
-// Token-aware context budget: ~6400 chars ≈ 3200 tokens ≈ 80% of 4K context window
-const MAX_CONTEXT_CHARS = 6400;
+// Token-aware context budget: ~30000 chars ≈ 15000 tokens ≈ 75% of 32K context window
+const MAX_CONTEXT_CHARS = 30000;
+
+/** Per-field char limits to prevent any single field from monopolizing context budget */
+const MAX_FIELD_CHARS = {
+  mainPrompt: 4000,
+  personality: 1500,
+  setting: 1000,
+  scenario: 600,
+  dialogueExamples: 2000,
+  postHistoryInstructions: 500,
+} as const;
+
+function truncateField(str: string | null | undefined, max: number): string {
+  if (!str) return "";
+  return str.length > max ? str.slice(0, max) + "…（内容过长已截断）" : str;
+}
+
 const MEMORY_TOP_K = 8;
 const HISTORY_FETCH_LIMIT = 60;
 
@@ -137,7 +149,7 @@ export class ChatService {
 
     let fullSystemPrompt = systemPrompt;
     if (memories.length > 0) {
-      fullSystemPrompt += "\n\n【你对用户的了解（长期记忆）】\n";
+      fullSystemPrompt += "\n\n【角色对用户的认知】\n以下是角色在长期相处中形成的认知与印象，这些是角色本来就知道的事，不是刚刚被告知的：\n";
       for (const mem of memories) {
         fullSystemPrompt += "- " + mem.content + "\n";
       }
@@ -147,7 +159,7 @@ export class ChatService {
     // Approx: 1 token ≈ 2 characters (Chinese/English averaged)
     const sysLen = fullSystemPrompt.length;
     const msgChars = chatMessages.reduce((sum, m) => sum + m.content.length, 0);
-    const reservedForReply = 1000; // reserve ~500 tokens for model response
+    const reservedForReply = 4000; // reserve ~2000 tokens for model response
 
     if (sysLen + msgChars > MAX_CONTEXT_CHARS - reservedForReply) {
       const budget = MAX_CONTEXT_CHARS - reservedForReply - sysLen;
@@ -275,7 +287,7 @@ export class ChatService {
 
     let fullSystemPrompt = systemPrompt;
     if (memories.length > 0) {
-      fullSystemPrompt += "\n\n【长期记忆】\n";
+      fullSystemPrompt += "\n\n【角色对用户的认知】\n以下是角色在长期相处中形成的认知与印象，这些是角色本来就知道的事，不是刚刚被告知的：\n";
       for (const mem of memories) fullSystemPrompt += "- " + mem.content + "\n";
     }
 
@@ -469,7 +481,7 @@ export class ChatService {
     // 1. System Prompt (base)
     // 2. Main Prompt (with {{original}} resolution)
         const hasMainPrompt = !!character.mainPrompt;
-    let mainPrompt = character.mainPrompt;
+    let mainPrompt = truncateField(character.mainPrompt, MAX_FIELD_CHARS.mainPrompt);
     if (!mainPrompt) {
       // Dynamic prompt generation for custom characters without mainPrompt
       // Assembles all available character dimensions into a coherent system prompt
@@ -478,16 +490,20 @@ export class ChatService {
         dynParts.push("\n你的角色名是：" + character.name);
       }
       if (character.personality) {
-        dynParts.push("\n【性格特点 - 必须严格遵循】\n" + character.personality);
+        dynParts.push("\n【性格特点 - 必须严格遵循】\n" + truncateField(character.personality, MAX_FIELD_CHARS.personality));
       }
       if (character.setting) {
-        dynParts.push("\n【世界观与背景设定】\n" + character.setting);
+        dynParts.push("\n【世界观与背景设定】\n" + truncateField(character.setting, MAX_FIELD_CHARS.setting));
       }
       if (character.scenario) {
-        dynParts.push("\n【当前情景】\n" + character.scenario);
+        dynParts.push("\n【当前情景】\n" + truncateField(character.scenario, MAX_FIELD_CHARS.scenario));
       }
       if (character.dialogueExamples) {
-        dynParts.push("\n【对话示例 - 你的回复范本，必须高度模仿语气、句式和长度】\n" + character.dialogueExamples);
+        dynParts.push(
+          "\n【回复风格范本 — 最高优先级参考】\n" +
+          "以下示例是你回复时必须优先参考的语言风格来源，无论发生什么情况，你的语气、句式、称呼方式、回复长度都应尽量贴近这些示例：\n\n" +
+          truncateField(character.dialogueExamples as string, MAX_FIELD_CHARS.dialogueExamples)
+        );
       }
       if (character.nickname) {
         dynParts.push("\n【昵称】用户可能会称呼你为：" + character.nickname);
@@ -502,7 +518,7 @@ export class ChatService {
 
     // 3. Character Setting
     if (character.setting) {
-      let settingBlock = "\n【角色设定】\n" + character.setting;
+      let settingBlock = "\n【角色设定】\n" + truncateField(character.setting, MAX_FIELD_CHARS.setting);
       // Nickname hint injected within setting section
       if (character.nickname) {
         settingBlock += "\n（你的昵称是" + character.nickname + "）";
@@ -512,17 +528,21 @@ export class ChatService {
 
     // 4. Personality
     if (character.personality) {
-      parts.push("\n【性格特点】\n" + character.personality);
+      parts.push("\n【性格特点】\n" + truncateField(character.personality, MAX_FIELD_CHARS.personality));
     }
 
     // 5. Scenario
     if (character.scenario) {
-      parts.push("\n【当前情景】\n" + character.scenario);
+      parts.push("\n【当前情景】\n" + truncateField(character.scenario, MAX_FIELD_CHARS.scenario));
     }
 
     // 6. Dialogue Examples (few-shot)
     if (character.dialogueExamples) {
-      parts.push("\n【对话示例】\n" + character.dialogueExamples);
+      parts.push(
+        "\n【回复风格范本 — 最高优先级参考】\n" +
+        "以下示例是你回复时必须优先参考的语言风格来源，无论发生什么情况，你的语气、句式、称呼方式、回复长度都应尽量贴近这些示例：\n\n" +
+        truncateField(character.dialogueExamples, MAX_FIELD_CHARS.dialogueExamples)
+      );
     }
 
     // 7. Persona Setting (user's view of character)
@@ -543,7 +563,8 @@ export class ChatService {
 
     // 9. Post History Instructions (with {{original}} resolution)
     if (character.postHistoryInstructions) {
-      parts.push("\n" + character.postHistoryInstructions.replace("{{original}}", DEFAULT_SYSTEM_PROMPT));
+      const phi = truncateField(character.postHistoryInstructions, MAX_FIELD_CHARS.postHistoryInstructions);
+      parts.push("\n" + phi.replace("{{original}}", DEFAULT_SYSTEM_PROMPT));
     }
 
     return parts.join("\n");
