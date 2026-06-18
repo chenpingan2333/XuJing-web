@@ -1,0 +1,294 @@
+src/app/characters/[id]/page.tsx-  const [nickname, setNickname] = useState("");
+src/app/characters/[id]/page.tsx-  const [groupGreeting, setGroupGreeting] = useState("");
+src/app/characters/[id]/page.tsx:  const [mainPrompt, setMainPrompt] = useState("");
+src/app/characters/[id]/page.tsx-  const [postHistoryInstructions, setPostHistoryInstructions] = useState("");
+src/app/characters/[id]/page.tsx-
+src/app/characters/[id]/page.tsx-  const [isOfficial, setIsOfficial] = useState(false);
+src/app/characters/[id]/page.tsx-  const [charVersion, setCharVersion] = useState(1);
+src/app/characters/[id]/page.tsx-
+src/app/characters/[id]/page.tsx-  const [showAdvanced, setShowAdvanced] = useState(false);
+src/app/characters/[id]/page.tsx-  const [showExtended, setShowExtended] = useState(false);
+src/app/characters/[id]/page.tsx-  const [showSystem, setShowSystem] = useState(false);
+src/app/characters/[id]/page.tsx-
+src/app/characters/[id]/page.tsx-  // Avatar preview only — separate from avatar_url
+src/app/characters/[id]/page.tsx-  const [avatarPreview, setAvatarPreview] = useState("");
+src/app/characters/[id]/page.tsx-  const [avatarUploading, setAvatarUploading] = useState(false);
+src/app/characters/[id]/page.tsx-
+src/app/characters/[id]/page.tsx-  const fetchCharacter = useCallback(async () => {
+src/app/characters/[id]/page.tsx-    if (!token || !id) return;
+--
+src/app/characters/new/page.tsx-  const [nickname, setNickname] = useState("");
+src/app/characters/new/page.tsx-  const [groupGreeting, setGroupGreeting] = useState("");
+src/app/characters/new/page.tsx:  const [mainPrompt, setMainPrompt] = useState("");
+src/app/characters/new/page.tsx-  const [postHistoryInstructions, setPostHistoryInstructions] = useState("");
+src/app/characters/new/page.tsx-
+src/app/characters/new/page.tsx-  const [avatarPreview, setAvatarPreview] = useState("");
+src/app/characters/new/page.tsx-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+src/app/characters/new/page.tsx-
+src/app/characters/new/page.tsx-  const [saving, setSaving] = useState(false);
+src/app/characters/new/page.tsx-  const [avatarUploading, setAvatarUploading] = useState(false);
+src/app/characters/new/page.tsx-  const [error, setError] = useState("");
+src/app/characters/new/page.tsx-  const [showAdvanced, setShowAdvanced] = useState(false);
+src/app/characters/new/page.tsx-  const [showSystem, setShowSystem] = useState(false);
+src/app/characters/new/page.tsx-  const [showExtended, setShowExtended] = useState(false);
+src/app/characters/new/page.tsx-  const [dragOver, setDragOver] = useState(false);
+src/app/characters/new/page.tsx-  const [jsonParsedName, setJsonParsedName] = useState("");
+src/app/characters/new/page.tsx-
+src/app/characters/new/page.tsx-  const formRef = useRef({
+--
+src/server/services/provider-gateway.ts-// 鈹€鈹€鈹€ Types 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+src/server/services/provider-gateway.ts-export interface ChatMessage {
+src/server/services/provider-gateway.ts:  role: "system" | "user" | "assistant";
+src/server/services/provider-gateway.ts-  content: string;
+src/server/services/provider-gateway.ts-}
+src/server/services/provider-gateway.ts-
+src/server/services/provider-gateway.ts-export type ChatEvent =
+src/server/services/provider-gateway.ts-  | { type: "delta"; content: string }
+src/server/services/provider-gateway.ts-  | { type: "done" }
+src/server/services/provider-gateway.ts-  | { type: "error"; message: string };
+src/server/services/provider-gateway.ts-
+src/server/services/provider-gateway.ts-// 鈹€鈹€鈹€ Gateway 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+src/server/services/provider-gateway.ts-export class ProviderGateway {
+src/server/services/provider-gateway.ts-  /**
+src/server/services/provider-gateway.ts-   * 娴佸紡鑱婂ぉ 鈥?缁熶竴鍏ュ彛
+src/server/services/provider-gateway.ts-   */
+src/server/services/provider-gateway.ts-  async *chat(
+src/server/services/provider-gateway.ts-    config: ApiConfig,
+--
+src/server/services/provider-gateway.ts-
+src/server/services/provider-gateway.ts-    const allMessages: ChatMessage[] = [
+src/server/services/provider-gateway.ts:      { role: "system", content: systemPrompt },
+src/server/services/provider-gateway.ts-      ...messages,
+src/server/services/provider-gateway.ts-    ];
+src/server/services/provider-gateway.ts-
+src/server/services/provider-gateway.ts-    switch (config.platform) {
+src/server/services/provider-gateway.ts-      case "OPENAI":
+src/server/services/provider-gateway.ts-      case "CUSTOM_OPENAI":
+src/server/services/provider-gateway.ts-      case "DEEPSEEK":
+src/server/services/provider-gateway.ts-      case "GROK":
+src/server/services/provider-gateway.ts-        yield* this._openaiCompatible(this._safeUrl(config.apiUrl, config.platform), apiKey, config.modelId, allMessages);
+src/server/services/provider-gateway.ts-        break;
+src/server/services/provider-gateway.ts-
+src/server/services/provider-gateway.ts-      case "ANTHROPIC":
+src/server/services/provider-gateway.ts-      case "CUSTOM_ANTHROPIC":
+src/server/services/provider-gateway.ts-        yield* this._anthropic(config.apiUrl, apiKey, config.modelId, allMessages);
+src/server/services/provider-gateway.ts-        break;
+--
+src/server/services/provider-gateway.ts-
+src/server/services/provider-gateway.ts-    const allMessages: ChatMessage[] = [
+src/server/services/provider-gateway.ts:      { role: "system", content: systemPrompt },
+src/server/services/provider-gateway.ts-      ...messages,
+src/server/services/provider-gateway.ts-    ];
+src/server/services/provider-gateway.ts-
+src/server/services/provider-gateway.ts-    yield* this._openaiCompatible(this._safeUrl(apiUrl, "DEEPSEEK"), apiKey, modelId, allMessages);
+src/server/services/provider-gateway.ts-  }
+src/server/services/provider-gateway.ts-
+src/server/services/provider-gateway.ts-  /**
+src/server/services/provider-gateway.ts-   * 娴嬭瘯杩炴帴 鈥?鍙戦€佹渶灏忚姹?   */
+src/server/services/provider-gateway.ts-  async testConnection(config: ApiConfig): Promise<{ ok: boolean; error?: string }> {
+src/server/services/provider-gateway.ts-    try {
+src/server/services/provider-gateway.ts-      const apiKey = await decryptApiKey(config.apiKeyEncrypted);
+src/server/services/provider-gateway.ts-      const testMessages: ChatMessage[] = [
+src/server/services/provider-gateway.ts-        { role: "user", content: "Hi" },
+src/server/services/provider-gateway.ts-      ];
+src/server/services/provider-gateway.ts:      const systemPrompt = "Reply with just 'ok'.";
+src/server/services/provider-gateway.ts-
+src/server/services/provider-gateway.ts-      const controller = new AbortController();
+src/server/services/provider-gateway.ts-      const timeout = setTimeout(() => controller.abort(), 10000);
+src/server/services/provider-gateway.ts-
+src/server/services/provider-gateway.ts-      const isOpenAI = ["OPENAI", "CUSTOM_OPENAI", "DEEPSEEK", "GROK"].includes(config.platform);
+src/server/services/provider-gateway.ts-
+src/server/services/provider-gateway.ts-      let url = config.apiUrl;
+src/server/services/provider-gateway.ts-      if (!url.endsWith("/chat/completions") && isOpenAI) {
+src/server/services/provider-gateway.ts-        url = url.replace(/\/+$/, "") + "/chat/completions";
+src/server/services/provider-gateway.ts-      }
+src/server/services/provider-gateway.ts-
+src/server/services/provider-gateway.ts-      const res = await fetch(url, {
+src/server/services/provider-gateway.ts-        method: "POST",
+src/server/services/provider-gateway.ts-        headers: {
+src/server/services/provider-gateway.ts-          "Content-Type": "application/json",
+--
+src/server/services/provider-gateway.ts-            ? {
+src/server/services/provider-gateway.ts-                model: config.modelId,
+src/server/services/provider-gateway.ts:                messages: [{ role: "system", content: systemPrompt }, ...testMessages],
+src/server/services/provider-gateway.ts-                max_tokens: 10,
+src/server/services/provider-gateway.ts-                stream: false,
+src/server/services/provider-gateway.ts-              }
+src/server/services/provider-gateway.ts-            : {
+src/server/services/provider-gateway.ts-                model: config.modelId,
+src/server/services/provider-gateway.ts-                messages: testMessages,
+src/server/services/provider-gateway.ts-                system: systemPrompt,
+src/server/services/provider-gateway.ts-                max_tokens: 10,
+src/server/services/provider-gateway.ts-              }
+src/server/services/provider-gateway.ts-        ),
+src/server/services/provider-gateway.ts-        signal: controller.signal,
+src/server/services/provider-gateway.ts-      });
+src/server/services/provider-gateway.ts-
+src/server/services/provider-gateway.ts-      clearTimeout(timeout);
+src/server/services/provider-gateway.ts-      return res.ok ? { ok: true } : { ok: false, error: `HTTP ${res.status}` };
+--
+src/server/services/provider-gateway.ts-  ): Promise<string> {
+src/server/services/provider-gateway.ts-    const allMessages: ChatMessage[] = [
+src/server/services/provider-gateway.ts:      { role: "system", content: systemPrompt },
+src/server/services/provider-gateway.ts-      ...messages,
+src/server/services/provider-gateway.ts-    ];
+src/server/services/provider-gateway.ts-
+src/server/services/provider-gateway.ts-    const controller = new AbortController();
+src/server/services/provider-gateway.ts-    const timeout = setTimeout(() => controller.abort(), 15000);
+src/server/services/provider-gateway.ts-
+src/server/services/provider-gateway.ts-    try {
+src/server/services/provider-gateway.ts-      const isOpenAI = ["OPENAI", "CUSTOM_OPENAI", "DEEPSEEK", "GROK"].includes(config.platform);
+src/server/services/provider-gateway.ts-      let url = config.apiUrl;
+src/server/services/provider-gateway.ts-      if (!url.endsWith("/chat/completions") && isOpenAI) {
+src/server/services/provider-gateway.ts-        url = url.replace(/\/+$/, "") + "/chat/completions";
+src/server/services/provider-gateway.ts-      }
+src/server/services/provider-gateway.ts-
+src/server/services/provider-gateway.ts-      const res = await fetch(url, {
+src/server/services/provider-gateway.ts-        method: "POST",
+--
+src/server/services/chat.service.ts-    }
+src/server/services/chat.service.ts-
+src/server/services/chat.service.ts:    const systemPrompt = this._buildSystemPrompt({
+src/server/services/chat.service.ts-      mainPrompt: character.mainPrompt,
+src/server/services/chat.service.ts-      setting: character.setting,
+src/server/services/chat.service.ts-      personality: character.personality,
+src/server/services/chat.service.ts-      scenario: character.scenario,
+src/server/services/chat.service.ts-      dialogueExamples: character.dialogueExamples as string | null,
+src/server/services/chat.service.ts-      nickname: character.nickname,
+src/server/services/chat.service.ts-      
+src/server/services/chat.service.ts-      name: character.name,
+src/server/services/chat.service.ts-      greeting: character.greeting,
+src/server/services/chat.service.ts-      extraFields: character.extraFields as Record<string, unknown> | null,
+src/server/services/chat.service.ts-      postHistoryInstructions: character.postHistoryInstructions,
+src/server/services/chat.service.ts-    }, user.personaSetting ?? undefined);
+src/server/services/chat.service.ts-
+src/server/services/chat.service.ts-    const memories = await memoryRetriever.retrieve(characterId, userId, content, MEMORY_TOP_K);
+src/server/services/chat.service.ts-    const historyMessages = await messageRepository.findHistory(characterId, userId, HISTORY_FETCH_LIMIT);
+--
+src/server/services/chat.service.ts-    }
+src/server/services/chat.service.ts-
+src/server/services/chat.service.ts:    let fullSystemPrompt = systemPrompt;
+src/server/services/chat.service.ts-    if (memories.length > 0) {
+src/server/services/chat.service.ts-      fullSystemPrompt += "\n\n【你对用户的了解（长期记忆）】\n";
+src/server/services/chat.service.ts-      for (const mem of memories) {
+src/server/services/chat.service.ts-        fullSystemPrompt += "- " + mem.content + "\n";
+src/server/services/chat.service.ts-      }
+src/server/services/chat.service.ts-    }
+src/server/services/chat.service.ts-    // ─── Token-Aware Context Budget ───
+src/server/services/chat.service.ts-    // Priority: system prompt (immutable) > memories (immutable) > messages (trim oldest first)
+src/server/services/chat.service.ts-    // Approx: 1 token ≈ 2 characters (Chinese/English averaged)
+src/server/services/chat.service.ts:    const sysLen = fullSystemPrompt.length;
+src/server/services/chat.service.ts-    const msgChars = chatMessages.reduce((sum, m) => sum + m.content.length, 0);
+src/server/services/chat.service.ts-    const reservedForReply = 1000; // reserve ~500 tokens for model response
+src/server/services/chat.service.ts-
+src/server/services/chat.service.ts-    if (sysLen + msgChars > MAX_CONTEXT_CHARS - reservedForReply) {
+src/server/services/chat.service.ts-      const budget = MAX_CONTEXT_CHARS - reservedForReply - sysLen;
+src/server/services/chat.service.ts-      let used = 0;
+src/server/services/chat.service.ts-      const trimmed: typeof chatMessages = [];
+src/server/services/chat.service.ts-      // Keep most recent messages within budget (iterate from newest)
+src/server/services/chat.service.ts-      for (let i = chatMessages.length - 1; i >= 0; i--) {
+src/server/services/chat.service.ts-        const m = chatMessages[i];
+src/server/services/chat.service.ts-        if (used + m.content.length <= budget) {
+src/server/services/chat.service.ts-          trimmed.unshift(m);
+src/server/services/chat.service.ts-          used += m.content.length;
+src/server/services/chat.service.ts-        } else {
+src/server/services/chat.service.ts-          break; // oldest messages dropped
+--
+src/server/services/chat.service.ts-    const historyMessages = await messageRepository.findHistory(characterId, userId, HISTORY_FETCH_LIMIT);
+src/server/services/chat.service.ts-
+src/server/services/chat.service.ts:    const systemPrompt = this._buildSuggestionSystemPrompt({
+src/server/services/chat.service.ts-      mainPrompt: character.mainPrompt,
+src/server/services/chat.service.ts-      setting: character.setting,
+src/server/services/chat.service.ts-      personality: character.personality,
+src/server/services/chat.service.ts-      scenario: character.scenario,
+src/server/services/chat.service.ts-      dialogueExamples: character.dialogueExamples as string | null,
+src/server/services/chat.service.ts-      nickname: character.nickname,
+src/server/services/chat.service.ts-      
+src/server/services/chat.service.ts-      name: character.name,
+src/server/services/chat.service.ts-      greeting: character.greeting,
+src/server/services/chat.service.ts-      extraFields: character.extraFields as Record<string, unknown> | null,
+src/server/services/chat.service.ts-      postHistoryInstructions: character.postHistoryInstructions,
+src/server/services/chat.service.ts-    }, historyMessages, 10, user?.personaSetting ?? undefined);
+src/server/services/chat.service.ts-
+src/server/services/chat.service.ts-    const chatMessages = [...historyMessages].reverse().map((m) => ({
+src/server/services/chat.service.ts-      role: m.role === "USER" ? ("user" as const) : ("assistant" as const),
+--
+src/server/services/chat.service.ts-    }));
+src/server/services/chat.service.ts-
+src/server/services/chat.service.ts:    let fullSystemPrompt = systemPrompt;
+src/server/services/chat.service.ts-    if (memories.length > 0) {
+src/server/services/chat.service.ts-      fullSystemPrompt += "\n\n【长期记忆】\n";
+src/server/services/chat.service.ts:      for (const mem of memories) fullSystemPrompt += "- " + mem.content + "\n";
+src/server/services/chat.service.ts-    }
+src/server/services/chat.service.ts-
+src/server/services/chat.service.ts-    chatMessages.push({ role: "user", content: "（请重新回复上一条消息）" });
+src/server/services/chat.service.ts-
+src/server/services/chat.service.ts-    let fullResponse = "";
+src/server/services/chat.service.ts-    try {
+src/server/services/chat.service.ts-      const chatStream = regenUseVipPlatform
+src/server/services/chat.service.ts-        ? providerGateway.vipPlatformChat(chatMessages, fullSystemPrompt)
+src/server/services/chat.service.ts-        : providerGateway.chat(regenConfig!, chatMessages, fullSystemPrompt);
+src/server/services/chat.service.ts-      for await (const event of chatStream) {
+src/server/services/chat.service.ts-        if (event.type === "delta") {
+src/server/services/chat.service.ts-          fullResponse += event.content;
+src/server/services/chat.service.ts-          yield event;
+src/server/services/chat.service.ts-        } else if (event.type === "done") {
+src/server/services/chat.service.ts-          if (fullResponse) {
+--
+src/server/services/chat.service.ts-    if (!sugUseVipPlatform && !sugConfig) return "";
+src/server/services/chat.service.ts-
+src/server/services/chat.service.ts:    const systemPrompt = this._buildSystemPrompt({
+src/server/services/chat.service.ts-      mainPrompt: character.mainPrompt,
+src/server/services/chat.service.ts-      setting: character.setting,
+src/server/services/chat.service.ts-      personality: character.personality,
+src/server/services/chat.service.ts-      scenario: character.scenario,
+src/server/services/chat.service.ts-      dialogueExamples: character.dialogueExamples as string | null,
+src/server/services/chat.service.ts-      nickname: character.nickname,
+src/server/services/chat.service.ts-      
+src/server/services/chat.service.ts-      name: character.name,
+src/server/services/chat.service.ts-      greeting: character.greeting,
+src/server/services/chat.service.ts-      extraFields: character.extraFields as Record<string, unknown> | null,
+src/server/services/chat.service.ts-      postHistoryInstructions: character.postHistoryInstructions,
+src/server/services/chat.service.ts-    }, user?.personaSetting ?? undefined);
+src/server/services/chat.service.ts-
+src/server/services/chat.service.ts-    const historyMessages = await messageRepository.findHistory(characterId, userId, 10);
+src/server/services/chat.service.ts-
+--
+src/server/services/chat.service.ts-    // 1. System Prompt (base)
+src/server/services/chat.service.ts-    // 2. Main Prompt (with {{original}} resolution)
+src/server/services/chat.service.ts:        const hasMainPrompt = !!character.mainPrompt;
+src/server/services/chat.service.ts:    let mainPrompt = character.mainPrompt;
+src/server/services/chat.service.ts-    if (!mainPrompt) {
+src/server/services/chat.service.ts-      // Dynamic prompt generation for custom characters without mainPrompt
+src/server/services/chat.service.ts-      // Assembles all available character dimensions into a coherent system prompt
+src/server/services/chat.service.ts-      const dynParts: string[] = [DEFAULT_SYSTEM_PROMPT];
+src/server/services/chat.service.ts-      if (character.name) {
+src/server/services/chat.service.ts-        dynParts.push("\n你的角色名是：" + character.name);
+src/server/services/chat.service.ts-      }
+src/server/services/chat.service.ts-      if (character.personality) {
+src/server/services/chat.service.ts-        dynParts.push("\n【性格特点 - 必须严格遵循】\n" + character.personality);
+src/server/services/chat.service.ts-      }
+src/server/services/chat.service.ts-      if (character.setting) {
+src/server/services/chat.service.ts-        dynParts.push("\n【世界观与背景设定】\n" + character.setting);
+src/server/services/chat.service.ts-      }
+src/server/services/chat.service.ts-      if (character.scenario) {
+src/server/services/chat.service.ts-        dynParts.push("\n【当前情景】\n" + character.scenario);
+--
+src/server/services/memory-engine.ts-          model: modelId,
+src/server/services/memory-engine.ts-          messages: [
+src/server/services/memory-engine.ts:            { role: "system", content: systemPrompt },
+src/server/services/memory-engine.ts-            ...messages,
+src/server/services/memory-engine.ts-          ],
+src/server/services/memory-engine.ts-          max_tokens: 512,
+src/server/services/memory-engine.ts-          temperature: 0.3,
+src/server/services/memory-engine.ts-          stream: false,
+src/server/services/memory-engine.ts-        }),
+src/server/services/memory-engine.ts-        signal: controller.signal,
+src/server/services/memory-engine.ts-      });
+src/server/services/memory-engine.ts-
+src/server/services/memory-engine.ts-      if (!res.ok) return "";
+src/server/services/memory-engine.ts-
+src/server/services/memory-engine.ts-      const json = await res.json();
+src/server/services/memory-engine.ts-      return json.choices?.[0]?.message?.content ?? "";
+src/server/services/memory-engine.ts-    } catch {
+src/server/services/memory-engine.ts-      return "";
