@@ -68,7 +68,8 @@ export class ChatService {
   async *sendMessage(
     userId: string,
     characterId: string,
-    content: string
+    content: string,
+    tempId?: string
   ): AsyncGenerator<ChatEvent> {
     const character = await characterRepository.findById(characterId);
     if (!character) {
@@ -106,6 +107,11 @@ export class ChatService {
       config = userConfig;
     }
 
+    const memories = await memoryRetriever.retrieve(characterId, userId, content, MEMORY_TOP_K);
+    const memoryBlock = memories.length > 0 
+      ? "\n\n" + MEMORY_HEADER + "\n" + memories.map(m => "- " + m.content).join("\n")
+      : "";
+    
     const systemPrompt = this._buildSystemPrompt({
       mainPrompt: character.mainPrompt,
       setting: character.setting,
@@ -118,9 +124,8 @@ export class ChatService {
       greeting: character.greeting,
       extraFields: character.extraFields as Record<string, unknown> | null,
       postHistoryInstructions: character.postHistoryInstructions,
-    }, user.personaSetting ?? undefined);
+    }, user.personaSetting ?? undefined, memoryBlock);
 
-    const memories = await memoryRetriever.retrieve(characterId, userId, content, MEMORY_TOP_K);
     const historyMessages = await messageRepository.findHistory(characterId, userId, HISTORY_FETCH_LIMIT);
 
     const chatMessages = [...historyMessages].reverse().map((m) => ({
@@ -148,17 +153,11 @@ export class ChatService {
       }
     }
 
-    let fullSystemPrompt = systemPrompt;
-    if (memories.length > 0) {
-      fullSystemPrompt += "\n\n" + MEMORY_HEADER + "\n";
-      for (const mem of memories) {
-        fullSystemPrompt += "- " + mem.content + "\n";
-      }
-    }
+
     // ─── Token-Aware Context Budget ───
     // Priority: system prompt (immutable) > memories (immutable) > messages (trim oldest first)
     // Approx: 1 token ≈ 2 characters (Chinese/English averaged)
-    const sysLen = fullSystemPrompt.length;
+    const sysLen = systemPrompt.length;
     const msgChars = chatMessages.reduce((sum, m) => sum + m.content.length, 0);
     const reservedForReply = 4000; // reserve ~2000 tokens for model response
 
@@ -196,20 +195,26 @@ export class ChatService {
     let fullResponse = "";
     try {
       const chatStream = regenUseVipPlatform
-        ? providerGateway.vipPlatformChat(chatMessages, fullSystemPrompt)
-        : providerGateway.chat(config!, chatMessages, fullSystemPrompt);
+        ? providerGateway.vipPlatformChat(chatMessages, systemPrompt)
+        : providerGateway.chat(config!, chatMessages, systemPrompt);
       for await (const event of chatStream) {
         if (event.type === "delta") {
           fullResponse += event.content;
           yield event;
         } else if (event.type === "done") {
           if (fullResponse) {
-            await messageRepository.create({
+            const assistantMessage = await messageRepository.create({
               characterId,
               userId,
               role: "ASSISTANT",
               content: fullResponse,
             });
+            // 发送 message_created 事件进行 UUID 回填
+            yield {
+              type: "message_created",
+              tempId: tempId || `ai-${Date.now()}`,
+              messageId: assistantMessage.id,
+            };
           }
           console.log("[MEMORY] extractAndPersist start", { characterId, messageCount: chatMessages.length });
           try {
@@ -234,7 +239,8 @@ export class ChatService {
 
   async *regenerateLastAssistantMessage(
     userId: string,
-    characterId: string
+    characterId: string,
+    tempId?: string
   ): AsyncGenerator<ChatEvent> {
     await messageRepository.deleteLastAssistant(characterId, userId);
 
@@ -273,6 +279,9 @@ export class ChatService {
         .at(-1)?.content ?? "";
 
     const memories = await memoryRetriever.retrieve(characterId, userId, lastUserMessage, MEMORY_TOP_K);
+    const memoryBlock = memories.length > 0 
+      ? "\n\n" + MEMORY_HEADER + "\n" + memories.map(m => "- " + m.content).join("\n")
+      : "";
 
     // P1-C: Use _buildSystemPrompt (same as sendMessage) instead of _buildSuggestionSystemPrompt
     const systemPrompt = this._buildSystemPrompt({
@@ -287,7 +296,7 @@ export class ChatService {
       greeting: character.greeting,
       extraFields: character.extraFields as Record<string, unknown> | null,
       postHistoryInstructions: character.postHistoryInstructions,
-    }, user?.personaSetting ?? undefined);
+    }, user.personaSetting ?? undefined, memoryBlock);
 
     const chatMessages = [...historyMessages].reverse().map((m) => ({
       role: m.role === "USER" ? ("user" as const) : ("assistant" as const),
@@ -337,9 +346,15 @@ export class ChatService {
           yield event;
         } else if (event.type === "done") {
           if (fullResponse) {
-            await messageRepository.create({
+            const assistantMessage = await messageRepository.create({
               characterId, userId, role: "ASSISTANT", content: fullResponse,
             });
+            // 发送 message_created 事件进行 UUID 回填
+            yield {
+              type: "message_created",
+              tempId: tempId || `ai-${Date.now()}`,
+              messageId: assistantMessage.id,
+            };
           }
           yield { type: "done" };
         } else if (event.type === "error") {
@@ -353,9 +368,10 @@ export class ChatService {
 
   async *continueAssistantMessage(
     userId: string,
-    characterId: string
+    characterId: string,
+    tempId?: string
   ): AsyncGenerator<ChatEvent> {
-    return yield* this.sendMessage(userId, characterId, "（请继续）");
+    return yield* this.sendMessage(userId, characterId, "（请继续）", tempId);
   }
 
   async getSuggestedReply(userId: string, characterId: string): Promise<string> {
@@ -391,8 +407,7 @@ export class ChatService {
       greeting: character.greeting,
       extraFields: character.extraFields as Record<string, unknown> | null,
       postHistoryInstructions: character.postHistoryInstructions,
-    }, user?.personaSetting ?? undefined);
-
+    }, user.personaSetting ?? undefined, undefined);
     const historyMessages = await messageRepository.findHistory(characterId, userId, 10);
     const lastUserMessage =
       historyMessages
@@ -447,7 +462,8 @@ export class ChatService {
     },
     historyMessages: Message[], 
     limit: number,
-    personaSetting?: string
+    personaSetting?: string,
+    memoryBlock?: string
   ): string {
     const recentMessages = historyMessages.slice(-limit);
     const conversationContext = recentMessages
@@ -518,7 +534,8 @@ export class ChatService {
       greeting?: string | null;
       extraFields?: Record<string, unknown> | null;
     },
-    personaSetting?: string
+    personaSetting?: string,
+    memoryBlock?: string
   ): string {
     const parts: string[] = [];
 
@@ -554,6 +571,10 @@ export class ChatService {
       }
       if (character.greeting) {
         dynParts.push("\n【你的开场白风格参考】\n" + character.greeting.split("<START>")[0]?.trim());
+      }
+      // 记忆注入点
+      if (memoryBlock) {
+        dynParts.push("\n" + memoryBlock);
       }
       dynParts.push("\n\n严格按照以上所有设定沉浸式扮演。用括号描述动作和神态细节，保持角色一致性，让对话自然有生活气息。每一条回复都必须是角色本人的第一人称发言，绝不跳出角色。");
       mainPrompt = dynParts.join("\n");
@@ -603,6 +624,11 @@ export class ChatService {
       if (extraStr) {
         parts.push("\n【额外设定】\n" + extraStr);
       }
+    }
+
+    // 记忆注入点
+    if (memoryBlock) {
+      parts.push("\n" + memoryBlock);
     }
 
     // 9. Post History Instructions (with {{original}} resolution)
