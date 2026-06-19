@@ -5,61 +5,14 @@
  * 前置条件: Next.js dev server 必须在 http://localhost:3003 运行
  */
 
-const BASE = "http://localhost:3003";
+import { BASE, ApiResponse, ProviderConfig, record, api, summary } from './test-utils';
+
 const TEST_EMAIL = "test-phase6@example.com";
-
-interface ApiResponse<T = unknown> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  timestamp: string;
-}
-
-interface ProviderConfig {
-  id: string;
-  name: string;
-  platform: string;
-  apiUrl: string;
-  modelId: string;
-  isDefault: boolean;
-  isActive: boolean;
-}
 
 let token = "";
 let testConfigId = "";
 let testConfigId2 = "";
 const results: { name: string; passed: boolean; detail: string }[] = [];
-
-function record(name: string, passed: boolean, detail: string) {
-  results.push({ name, passed, detail });
-  const icon = passed ? "✓" : "✗";
-  console.log(`  ${icon} ${name}${detail ? ": " + detail : ""}`);
-}
-
-function summary() {
-  const total = results.length;
-  const passed = results.filter((r) => r.passed).length;
-  const failed = total - passed;
-  console.log(`\n${"=".repeat(50)}`);
-  console.log(`Test Results: ${passed}/${total} passed, ${failed} failed`);
-  console.log(`${"=".repeat(50)}`);
-  if (failed > 0) process.exit(1);
-}
-
-async function api<T>(
-  path: string,
-  options: { method?: string; body?: unknown; token?: string } = {}
-): Promise<ApiResponse<T>> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (options.token) headers["Authorization"] = "Bearer " + options.token;
-  const res = await fetch(`${BASE}${path}`, {
-    method: options.method || "GET",
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
-  const data = await res.json();
-  return data as ApiResponse<T>;
-}
 
 async function runTests() {
   console.log("Phase 6.1 — API Connection System Integration Tests\n");
@@ -91,7 +44,7 @@ async function runTests() {
     record("Dev token obtained", true, "token received");
   } else {
     record("Dev token obtained", false, devRes.error || "failed");
-    summary();
+    summary(results);
     return;
   }
 
@@ -200,11 +153,11 @@ async function runTests() {
     const otherToken = devRes2.data.accessToken;
 
     // Try to access other user's config
-    const otherGet = await api(`/api/api-configs/${testConfigId}`, { token: otherToken });
+    const otherGet = await api("/api/api-configs/" + testConfigId, { token: otherToken });
     record("Cross-user access blocked", otherGet.error?.includes("无权") || otherGet.error?.includes("Unauthorized") || otherGet.error?.includes("Forbidden") || !otherGet.success, otherGet.error || "blocked");
 
     // Try to update other user's config
-    const otherUpdate = await api(`/api/api-configs/${testConfigId}`, {
+    const otherUpdate = await api("/api/api-configs/" + testConfigId, {
       method: "PUT",
       token: otherToken,
       body: { name: "Hacked" },
@@ -212,7 +165,7 @@ async function runTests() {
     record("Cross-user update blocked", !otherUpdate.success, otherUpdate.error || "blocked");
 
     // Try to delete other user's config
-    const otherDelete = await api(`/api/api-configs/${testConfigId}`, {
+    const otherDelete = await api("/api/api-configs/" + testConfigId, {
       method: "DELETE",
       token: otherToken,
     });
@@ -224,7 +177,7 @@ async function runTests() {
   // ——— 8. Delete Provider ———
   console.log("\n8. Provider Delete");
   if (testConfigId2) {
-    const del = await api(`/api/api-configs/${testConfigId2}`, { method: "DELETE", token });
+    const del = await api("/api/api-configs/" + testConfigId2, { method: "DELETE", token });
     record("Delete provider", del.success, del.success ? "deleted" : (del.error || ""));
   }
 
@@ -232,10 +185,10 @@ async function runTests() {
   console.log("\n9. FREE User Flow");
   // List after operations should still work
   const list3 = await api<ProviderConfig[]>("/api/api-configs", { token });
-  record("List after delete", list3.success, `remaining: ${(list3.data || []).length}`);
+  record("List after delete", list3.success, "remaining: " + (list3.data || []).length);
 
   // ——— Summary ———
-  summary();
+  summary(results);
 }
 
 runTests().catch((err) => {

@@ -13,7 +13,7 @@
 
 import { db, schema } from '@/db';
 import { characters, memories, messages, userCharacterSettings, apiConfigs } from '@/db/schema';
-import { auditLogs, AuditAction } from '@/db/schema/audit-logs';
+import { auditLogs, AuditAction, SYSTEM_ACTOR_ID } from '@/db/schema/audit-logs';
 import { eq, and, sql, desc, isNull } from 'drizzle-orm';
 import { uuidv7 } from '@/db/helpers';
 
@@ -25,7 +25,7 @@ import { uuidv7 } from '@/db/helpers';
  * 软删除选项 - 用于审计日志追踪
  */
 export interface SoftDeleteOptions {
-  /** 操作者ID（未提供时默认'system'） */
+  /** 操作者ID（未提供时默认系统账号 UUID） */
   actorId?: string;
   /** 操作者IP地址 */
   actorIp?: string;
@@ -179,7 +179,7 @@ export class AssetService {
         // 审计日志
         await this.insertAuditLog(tx, {
           action: AuditAction.CHARACTER_DELETE,
-          actorId: options.actorId ?? 'system',
+          actorId: options.actorId ?? SYSTEM_ACTOR_ID,
           actorIp: options.actorIp,
           actorUa: options.actorUa,
           targetType: 'character',
@@ -195,6 +195,7 @@ export class AssetService {
         return { success: true, id: characterId, affectedCount: 1 };
       });
     } catch (error) {
+      console.error("[AssetService] softDeleteCharacter failed:", error);
       return {
         success: false,
         id: characterId,
@@ -240,7 +241,7 @@ export class AssetService {
 
         await this.insertAuditLog(tx, {
           action: AuditAction.MEMORY_DELETE,
-          actorId: options.actorId ?? 'system',
+          actorId: options.actorId ?? SYSTEM_ACTOR_ID,
           actorIp: options.actorIp,
           actorUa: options.actorUa,
           targetType: 'memory',
@@ -256,6 +257,7 @@ export class AssetService {
         return { success: true, id: memoryId, affectedCount: 1 };
       });
     } catch (error) {
+      console.error("[AssetService] softDeleteMemory failed:", error);
       return {
         success: false,
         id: memoryId,
@@ -300,7 +302,7 @@ export class AssetService {
         const sampleIds = records.slice(0, 10).map((r) => r.id);
         await this.insertAuditLog(tx, {
           action: AuditAction.MEMORY_DELETE,
-          actorId: options.actorId ?? 'system',
+          actorId: options.actorId ?? SYSTEM_ACTOR_ID,
           actorIp: options.actorIp,
           actorUa: options.actorUa,
           targetType: 'memory',
@@ -321,6 +323,7 @@ export class AssetService {
         return { success: true, id: characterId, affectedCount: records.length };
       });
     } catch (error) {
+      console.error("[AssetService] softDeleteMemoriesByCharacter failed:", error);
       return {
         success: false,
         id: characterId,
@@ -366,7 +369,7 @@ export class AssetService {
 
         await this.insertAuditLog(tx, {
           action: AuditAction.MESSAGE_DELETE,
-          actorId: options.actorId ?? 'system',
+          actorId: options.actorId ?? SYSTEM_ACTOR_ID,
           actorIp: options.actorIp,
           actorUa: options.actorUa,
           targetType: 'message',
@@ -382,6 +385,7 @@ export class AssetService {
         return { success: true, id: messageId, affectedCount: 1 };
       });
     } catch (error) {
+      console.error("[AssetService] softDeleteMessage failed:", error);
       return {
         success: false,
         id: messageId,
@@ -438,7 +442,7 @@ export class AssetService {
         const sampleIds = records.slice(0, 10).map((r) => r.id);
         await this.insertAuditLog(tx, {
           action: AuditAction.MESSAGE_DELETE,
-          actorId: options.actorId ?? 'system',
+          actorId: options.actorId ?? SYSTEM_ACTOR_ID,
           actorIp: options.actorIp,
           actorUa: options.actorUa,
           targetType: 'message',
@@ -460,6 +464,7 @@ export class AssetService {
         return { success: true, id: characterId, affectedCount: records.length };
       });
     } catch (error) {
+      console.error("[AssetService] softDeleteMessagesByCharacter failed:", error);
       return {
         success: false,
         id: characterId,
@@ -511,7 +516,7 @@ export class AssetService {
 
         await this.insertAuditLog(tx, {
           action: AuditAction.MESSAGE_DELETE,
-          actorId: options.actorId ?? 'system',
+          actorId: options.actorId ?? SYSTEM_ACTOR_ID,
           actorIp: options.actorIp,
           actorUa: options.actorUa,
           targetType: 'message',
@@ -527,6 +532,7 @@ export class AssetService {
         return { success: true, id: record.id, affectedCount: 1 };
       });
     } catch (error) {
+      console.error("[AssetService] softDeleteLastAssistantMessage failed:", error);
       return {
         success: false,
         id: undefined,
@@ -583,7 +589,7 @@ export class AssetService {
 
         await this.insertAuditLog(tx, {
           action: AuditAction.USER_SETTINGS_DELETE,
-          actorId: options.actorId ?? 'system',
+          actorId: options.actorId ?? SYSTEM_ACTOR_ID,
           actorIp: options.actorIp,
           actorUa: options.actorUa,
           targetType: 'user_character_setting',
@@ -599,6 +605,7 @@ export class AssetService {
         return { success: true, id: record.id, affectedCount: 1 };
       });
     } catch (error) {
+      console.error("[AssetService] softDeleteUserCharacterSetting failed:", error);
       return {
         success: false,
         id: `${userId}:${characterId}`,
@@ -646,7 +653,7 @@ export class AssetService {
 
         await this.insertAuditLog(tx, {
           action: AuditAction.API_CONFIG_DELETE,
-          actorId: options.actorId ?? 'system',
+          actorId: options.actorId ?? SYSTEM_ACTOR_ID,
           actorIp: options.actorIp,
           actorUa: options.actorUa,
           targetType: 'api_config',
@@ -662,6 +669,7 @@ export class AssetService {
         return { success: true, id: configId, affectedCount: 1 };
       });
     } catch (error) {
+      console.error('[AssetService] softDeleteApiConfig failed:', error);
       return {
         success: false,
         id: configId,

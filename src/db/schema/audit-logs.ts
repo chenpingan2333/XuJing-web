@@ -25,6 +25,16 @@ import {
 import { desc, sql } from "drizzle-orm";
 import { uuidv7 } from "../helpers";
 
+// ─── System Actor ID ──────────────────────────────────
+
+/**
+ * 系统操作者 UUID — 用于无明确用户上下文时的审计日志 actorId
+ *
+ * 固定值，全项目唯一，禁止随机生成。
+ * 当操作由系统自动触发（如定时任务、级联删除）且无用户 session 时使用。
+ */
+export const SYSTEM_ACTOR_ID = "00000000-0000-0000-0000-000000000001";
+
 // ─── Audit Enums ─────────────────────────────────────
 
 /** 操作者类型 */

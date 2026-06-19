@@ -61,6 +61,7 @@ interface ExtractionResult {
 // ─── Memory Retriever — Keyword-based retrieval (pre-pgvector) ───
 
 export class MemoryRetriever {
+  private readonly MIN_KEYWORD_SCORE = 1.0; // 新增关键词分数阈值，过滤泛语义词误召回
   /**
    * 根据用户当前输入，从记忆中检索最相关的 Top-K。
    * 过渡方案：关键词子串匹配 + importance 排序。
@@ -103,7 +104,7 @@ export class MemoryRetriever {
         }
       }
       const importance = Number(mem.importance ?? "0.50");
-      const importanceBonus = importance * 0.1;
+      const importanceBonus = importance * 0.3; // 提升importance权重，从0.1调整到0.3
       const score = keywordScore + importanceBonus;
       return { memory: mem, score, keywordScore, importanceBonus, hitKeywords };
     });
@@ -111,8 +112,8 @@ export class MemoryRetriever {
     // 按 score DESC, importance DESC 排序
     scored.sort((a, b) => b.score - a.score || Number(b.memory.importance ?? 0) - Number(a.memory.importance ?? 0));
 
-    // 最低命中阈值：keywordScore > 0 || importance >= 0.8
-    const eligible = scored.filter((s) => s.keywordScore > 0 || Number(s.memory.importance ?? 0) >= 0.8);
+    // 最低命中阈值：keywordScore >= MIN_KEYWORD_SCORE || importance >= 0.8
+    const eligible = scored.filter((s) => s.keywordScore >= this.MIN_KEYWORD_SCORE || Number(s.memory.importance ?? 0) >= 0.8);
     const result = eligible.slice(0, topK).map((s) => s.memory);
     // 命中关键词日志
     for (const s of eligible.slice(0, topK)) {

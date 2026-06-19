@@ -5,26 +5,9 @@
  * 前置: dev server 在 localhost:3003 运行
  */
 
-const BASE = "http://localhost:3003";
+import { BASE, record, api } from './test-utils';
+
 const results: { item: string; result: string; detail: string }[] = [];
-
-function record(item: string, passed: boolean, detail: string) {
-  const r = passed ? "PASS" : "FAIL";
-  results.push({ item, result: r, detail });
-  console.log(`  ${r} | ${item}: ${detail}`);
-}
-
-async function api<T>(path: string, opts: { method?: string; body?: unknown; token?: string } = {}): Promise<{ success: boolean; data?: T; error?: string; status?: number }> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (opts.token) headers["Authorization"] = "Bearer " + opts.token;
-  const res = await fetch(`${BASE}${path}`, {
-    method: opts.method || "GET",
-    headers,
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-  });
-  const data = await res.json().catch(() => ({}));
-  return { ...data, status: res.status };
-}
 
 async function getToken(email: string): Promise<string | null> {
   try {
@@ -113,11 +96,11 @@ async function run() {
   record("A8: Risk — devLogin no secondary guard", true, "devLogin in auth.service has no env check; risk depends on correct NODE_ENV config");
 
   // ——— SUMMARY ———
-  console.log(`\n${"=".repeat(60)}`);
+  console.log(`\n${'='.repeat(60)}`);
   const passed = results.filter(r => r.result === "PASS").length;
   const failed = results.filter(r => r.result === "FAIL").length;
   console.log(`RESULTS: ${passed} PASS, ${failed} FAIL of ${results.length} items`);
-  console.log(`${"=".repeat(60)}`);
+  console.log(`${'='.repeat(60)}`);
 
   // Determine overall conclusion
   const conclusion = failed === 0 ? "PASS" : "FAIL";

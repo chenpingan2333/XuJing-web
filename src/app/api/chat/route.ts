@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   if (authResult instanceof Response) return authResult;
   const user = authResult;
 
-  let body: { characterId?: string; content?: string };
+  let body: { characterId?: string; content?: string; tempId?: string };
   try { body = await req.json(); } catch { return jsonErr("Invalid JSON body", 400); }
   if (!body.characterId || !body.content) return jsonErr("characterId and content are required", 400);
 
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        for await (const event of chatService.sendMessage(user.userId, body.characterId!, body.content!)) {
+        for await (const event of chatService.sendMessage(user.userId, body.characterId!, body.content!, body.tempId)) {
           controller.enqueue(encoder.encode("data: " + JSON.stringify(event) + "\n\n"));
           if (event.type === "done" || event.type === "error") break;
         }

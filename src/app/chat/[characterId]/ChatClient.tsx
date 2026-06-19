@@ -45,6 +45,7 @@ async function consumeSSEStream(
   onDelta: (content: string) => void,
   onError: (message: string) => void,
   onDone: () => void,
+  onMessageCreated?: (tempId: string, messageId: string) => void,
 ) {
   const reader = res.body?.getReader();
   if (!reader) {
@@ -68,7 +69,10 @@ async function consumeSSEStream(
         if (!line.startsWith("data: ")) continue;
         try {
           const evt = JSON.parse(line.slice(6));
-          if (evt.type === "delta") {
+          if (evt.type === "message_created") {
+            console.log("[UUIDBackfill] message_created event:", { tempId: evt.tempId, messageId: evt.messageId });
+            onMessageCreated?.(evt.tempId, evt.messageId);
+          } else if (evt.type === "delta") {
             onDelta(evt.content);
           } else if (evt.type === "done") {
             onDone();
@@ -256,6 +260,7 @@ export function ChatClient({ characterId }: { characterId: string }) {
         (delta) => { aiContent += delta; setMessages((prev) => prev.map((m) => (m.id === aiMsgId ? { ...m, content: aiContent } : m))); },
         (errMsg) => { setMessages((prev) => prev.map((m) => (m.id === aiMsgId ? { ...m, content: errMsg } : m))); },
         () => refreshMemory(),
+        replaceMessageId,
       );
     } finally {
       setIsStreaming(false);
@@ -290,6 +295,7 @@ export function ChatClient({ characterId }: { characterId: string }) {
         (delta) => { aiContent += delta; setMessages((prev) => prev.map((m) => (m.id === targetId ? { ...m, content: aiContent } : m))); },
         (errMsg) => { setMessages((prev) => prev.map((m) => (m.id === targetId ? { ...m, content: errMsg } : m))); },
         () => refreshMemory(),
+        replaceMessageId,
       );
     } finally {
       setIsStreaming(false);
@@ -322,6 +328,7 @@ export function ChatClient({ characterId }: { characterId: string }) {
         (delta) => { aiContent += delta; setMessages((prev) => prev.map((m) => (m.id === aiMsgId ? { ...m, content: aiContent } : m))); },
         (errMsg) => { setMessages((prev) => prev.map((m) => (m.id === aiMsgId ? { ...m, content: errMsg } : m))); },
         () => refreshMemory(),
+        replaceMessageId,
       );
     } finally {
       setIsStreaming(false);
@@ -361,6 +368,13 @@ export function ChatClient({ characterId }: { characterId: string }) {
   const handleRewriteAi = useCallback((msg: MessageData) => {
     setEditingMessage(msg);
     setActiveModal("editAiMessage");
+  }, []);
+
+  // ── Replace temporary message ID with real ID ──
+  const replaceMessageId = useCallback((tempId: string, messageId: string) => {
+    setMessages(prev => prev.map(msg => 
+      msg.id === tempId ? { ...msg, id: messageId } : msg
+    ));
   }, []);
 
   // ── Save edited AI message ──

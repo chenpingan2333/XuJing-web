@@ -13,5 +13,7 @@ export async function POST(
   if (auth instanceof Response) return auth;
 
   const { characterId } = await params;
-  return sseResponse(chatService.continueAssistantMessage(auth.userId, characterId));
+  let body: { tempId?: string } = {};
+  try { body = await req.json(); } catch { /* ignore */ }
+  return sseResponse(chatService.continueAssistantMessage(auth.userId, characterId, body.tempId));
 }

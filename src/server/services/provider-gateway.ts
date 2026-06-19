@@ -18,6 +18,7 @@ export interface ChatMessage {
 
 export type ChatEvent =
   | { type: "delta"; content: string }
+  | { type: "message_created"; tempId: string; messageId: string }
   | { type: "done" }
   | { type: "error"; message: string };
 

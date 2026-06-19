@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { memories } from "@/db/schema/memories";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { assetService } from "@/services/AssetService";
+import { SYSTEM_ACTOR_ID } from "@/db/schema/audit-logs";
 
 export class MemoryRepository {
   async findById(id: string) {
@@ -52,7 +53,7 @@ export class MemoryRepository {
 
   async deleteByCharacter(characterId: string, options: { actorId?: string; reason?: string } = {}) {
     const result = await assetService.softDeleteMemoriesByCharacter(characterId, {
-      actorId: options.actorId ?? 'system',
+      actorId: options.actorId ?? SYSTEM_ACTOR_ID,
       reason: options.reason ?? 'Delete memories by character',
     });
     if (!result.success) {
