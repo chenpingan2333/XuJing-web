@@ -303,14 +303,10 @@ export class ChatService {
       content: m.content,
     }));
 
-    let fullSystemPrompt = systemPrompt;
-    if (memories.length > 0) {
-      fullSystemPrompt += "\n\n" + MEMORY_HEADER + "\n";
-      for (const mem of memories) fullSystemPrompt += "- " + mem.content + "\n";
-    }
+
 
     // ─── P1-C: Token-Aware Context Budget (same as sendMessage) ───
-    const sysLen = fullSystemPrompt.length;
+    const sysLen = systemPrompt.length;
     const msgChars = chatMessages.reduce((sum, m) => sum + m.content.length, 0);
     const reservedForReply = 4000;
 
@@ -338,8 +334,8 @@ export class ChatService {
     let fullResponse = "";
     try {
       const chatStream = regenUseVipPlatform
-        ? providerGateway.vipPlatformChat(chatMessages, fullSystemPrompt)
-        : providerGateway.chat(regenConfig!, chatMessages, fullSystemPrompt);
+        ? providerGateway.vipPlatformChat(chatMessages, systemPrompt)
+        : providerGateway.chat(regenConfig!, chatMessages, systemPrompt);
       for await (const event of chatStream) {
         if (event.type === "delta") {
           fullResponse += event.content;
@@ -395,6 +391,16 @@ export class ChatService {
     }
     if (!sugUseVipPlatform && !sugConfig) return "";
 
+    const historyMessages = await messageRepository.findHistory(characterId, userId, 10);
+    const lastUserMessage =
+      historyMessages
+        .filter(m => m.role === "USER")
+        .at(-1)?.content ?? "";
+    const memories = await memoryRetriever.retrieve(characterId, userId, lastUserMessage, MEMORY_TOP_K);
+    const memoryBlock = memories.length > 0 
+      ? "\n\n" + MEMORY_HEADER + "\n" + memories.map(m => "- " + m.content).join("\n")
+      : "";
+
     const systemPrompt = this._buildSystemPrompt({
       mainPrompt: character.mainPrompt,
       setting: character.setting,
@@ -407,13 +413,7 @@ export class ChatService {
       greeting: character.greeting,
       extraFields: character.extraFields as Record<string, unknown> | null,
       postHistoryInstructions: character.postHistoryInstructions,
-    }, user.personaSetting ?? undefined, undefined);
-    const historyMessages = await messageRepository.findHistory(characterId, userId, 10);
-    const lastUserMessage =
-      historyMessages
-        .filter(m => m.role === "USER")
-        .at(-1)?.content ?? "";
-    const memories = await memoryRetriever.retrieve(characterId, userId, lastUserMessage, MEMORY_TOP_K);
+    }, user.personaSetting ?? undefined, memoryBlock);
 
     const chatMessages = [...historyMessages].reverse().map((m) => ({
       role: m.role === "USER" ? ("user" as const) : ("assistant" as const),
@@ -425,17 +425,13 @@ export class ChatService {
       content: "请根据以上对话历史，以用户（我）的身份生成一条简短自然的回复建议，直接输出回复内容，不要加任何前缀或解释。",
     });
 
-    let fullSystemPrompt = systemPrompt;
-    if (memories.length > 0) {
-      fullSystemPrompt += "\n\n" + MEMORY_HEADER + "\n";
-      for (const mem of memories) fullSystemPrompt += "- " + mem.content + "\n";
-    }
+
 
     let suggestion = "";
     try {
       const sugStream = sugUseVipPlatform
-        ? providerGateway.vipPlatformChat(chatMessages, fullSystemPrompt)
-        : providerGateway.chat(sugConfig!, chatMessages, fullSystemPrompt);
+        ? providerGateway.vipPlatformChat(chatMessages, systemPrompt)
+        : providerGateway.chat(sugConfig!, chatMessages, systemPrompt);
       for await (const event of sugStream) {
         if (event.type === "delta") suggestion += event.content;
         else if (event.type === "error") return "";
