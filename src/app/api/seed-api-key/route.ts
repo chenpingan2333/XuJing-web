@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
       await apiConfigService.updateConfig(auth.userId, dup.id, {
         apiKey: "sk-9d7c2558fad9451eb444601b0b7cc779",
         apiUrl: "https://api.deepseek.com",
-        modelId: "deepseek-chat",
+        modelId: "deepseek-v4-flash",
       });
       return NextResponse.json({ status: "UPDATED", id: dup.id });
     }
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
       platform: "DEEPSEEK",
       apiUrl: "https://api.deepseek.com",
       apiKey: "sk-9d7c2558fad9451eb444601b0b7cc779",
-      modelId: "deepseek-chat",
+      modelId: "deepseek-v4-flash",
       isDefault: existing.length === 0,
     });
 

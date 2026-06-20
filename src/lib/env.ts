@@ -31,7 +31,7 @@ const envSchema = z.object({
   // 服务端专属路由，API Key 不经数据库加密层，永不暴露给前端
   PLATFORM_API_URL: z.string().optional().default("https://api.deepseek.com"),
   PLATFORM_API_KEY: z.string().optional(),
-  PLATFORM_MODEL_ID: z.string().optional().default("deepseek-chat"),
+  PLATFORM_MODEL_ID: z.string().optional().default("deepseek-v4-flash"),
 });
 
 let _env: z.infer<typeof envSchema> | null = null;

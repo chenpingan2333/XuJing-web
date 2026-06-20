@@ -189,7 +189,7 @@ export class MemoryEngine {
       // 3. 获取 API 配置（优先平台模型，fallback 到用户自备 Key）
       let apiUrl = process.env.PLATFORM_API_URL ?? "https://api.deepseek.com";
       let apiKey = process.env.PLATFORM_API_KEY ?? "";
-      let modelId = process.env.PLATFORM_MODEL_ID ?? "deepseek-chat";
+      let modelId = process.env.PLATFORM_MODEL_ID ?? "deepseek-v4-flash";
 
       if (!apiKey && fallbackConfig) {
         apiKey = await decryptApiKey(fallbackConfig.apiKeyEncrypted);
