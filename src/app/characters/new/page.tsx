@@ -42,6 +42,7 @@ function parseCharacterJSON(raw: unknown): ParsedCharacter | null {
   const obj = raw as Record<string, unknown>;
   const result: ParsedCharacter = {};
 
+  // 基础字段映射
   if (typeof obj.name === "string") result.name = obj.name;
   if (typeof obj.setting === "string") result.setting = obj.setting;
   if (typeof obj.greeting === "string") result.greeting = obj.greeting;
@@ -49,10 +50,16 @@ function parseCharacterJSON(raw: unknown): ParsedCharacter | null {
   if (typeof obj.scenario === "string") result.scenario = obj.scenario;
   if (typeof obj.dialogue_examples === "string") result.dialogueExamples = obj.dialogue_examples;
   if (typeof obj.nickname === "string") result.nickname = obj.nickname;
-  if (typeof obj.group_greeting === "string") result.groupGreeting = obj.group_greeting;
-  if (typeof obj.main_prompt === "string") result.mainPrompt = obj.main_prompt;
+  if (typeof obj.group_greeting === "string") result.groupGreeting = obj.groupGreeting;
+  if (typeof obj.main_prompt === "string") result.mainPrompt = obj.mainPrompt;
   if (typeof obj.post_history_instructions === "string") result.postHistoryInstructions = obj.post_history_instructions;
 
+  // Character Card V1 格式兼容
+  if (typeof obj.first_mes === "string" && !result.greeting) result.greeting = obj.first_mes;
+  if (typeof obj.mes_example === "string" && !result.dialogueExamples) result.dialogueExamples = obj.mes_example;
+  if (typeof obj.description === "string" && !result.setting) result.setting = obj.description;
+
+  // advanced_definitions 字段
   const adv = obj.advanced_definitions;
   if (adv && typeof adv === "object" && !Array.isArray(adv)) {
     const a = adv as Record<string, unknown>;
@@ -61,6 +68,7 @@ function parseCharacterJSON(raw: unknown): ParsedCharacter | null {
     if (typeof a.dialogueExamples === "string" && !result.dialogueExamples) result.dialogueExamples = a.dialogueExamples;
   }
 
+  // extended_fields 字段
   const ext = obj.extended_fields;
   if (ext && typeof ext === "object" && !Array.isArray(ext)) {
     const e = ext as Record<string, unknown>;
@@ -68,6 +76,7 @@ function parseCharacterJSON(raw: unknown): ParsedCharacter | null {
     if (typeof e.groupGreeting === "string" && !result.groupGreeting) result.groupGreeting = e.groupGreeting;
   }
 
+  // system_instructions 字段
   const sys = obj.system_instructions;
   if (sys && typeof sys === "object" && !Array.isArray(sys)) {
     const s = sys as Record<string, unknown>;
@@ -75,6 +84,7 @@ function parseCharacterJSON(raw: unknown): ParsedCharacter | null {
     if (typeof s.postHistoryInstructions === "string" && !result.postHistoryInstructions) result.postHistoryInstructions = s.postHistoryInstructions;
   }
 
+  // TavernV2 格式 (chara_card_v2)
   if (obj.spec === "chara_card_v2" && obj.data && typeof obj.data === "object") {
     const d = obj.data as Record<string, unknown>;
     if (typeof d.name === "string" && !result.name) result.name = d.name;
@@ -87,6 +97,18 @@ function parseCharacterJSON(raw: unknown): ParsedCharacter | null {
     if (typeof d.post_history_instructions === "string" && !result.postHistoryInstructions) result.postHistoryInstructions = d.post_history_instructions;
   }
 
+  // Chub 格式兼容 (有 data 字段但无 spec 标记)
+  if (!obj.spec && obj.data && typeof obj.data === "object") {
+    const d = obj.data as Record<string, unknown>;
+    if (typeof d.name === "string" && !result.name) result.name = d.name;
+    if (typeof d.description === "string" && !result.setting) result.setting = d.description;
+    if (typeof d.first_mes === "string" && !result.greeting) result.greeting = d.first_mes;
+    if (typeof d.personality === "string" && !result.personality) result.personality = d.personality;
+    if (typeof d.scenario === "string" && !result.scenario) result.scenario = d.scenario;
+    if (typeof d.mes_example === "string" && !result.dialogueExamples) result.dialogueExamples = d.mes_example;
+  }
+
+  // 如果没有任何有效字段，返回 null
   if (Object.keys(result).length === 0) return null;
   return result;
 }
@@ -121,6 +143,7 @@ export default function NewCharacterPage() {
   const [saving, setSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [error, setError] = useState("");
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showSystem, setShowSystem] = useState(false);
   const [showExtended, setShowExtended] = useState(false);
@@ -136,15 +159,29 @@ export default function NewCharacterPage() {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
 
+  const showToast = useCallback((type: "success" | "error", message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 2500);
+  }, []);
+
   const handleAvatarSelect = useCallback((file: File) => {
     setError("");
-    if (file.size > MAX_IMAGE_BYTES) { setError("头像文件不能超过 10MB"); return; }
-    if (!ALLOWED_IMAGE.includes(file.type as typeof ALLOWED_IMAGE[number])) { setError("仅支持 jpg / png / webp 格式"); return; }
+    if (file.size > MAX_IMAGE_BYTES) { 
+      setError("头像文件不能超过 10MB");
+      showToast("error", "头像文件不能超过 10MB");
+      return; 
+    }
+    if (!ALLOWED_IMAGE.includes(file.type as typeof ALLOWED_IMAGE[number])) { 
+      setError("仅支持 jpg / png / webp 格式");
+      showToast("error", "仅支持 jpg / png / webp 格式");
+      return; 
+    }
     setAvatarFile(file);
     const reader = new FileReader();
     reader.onload = () => setAvatarPreview(reader.result as string);
     reader.readAsDataURL(file);
-  }, []);
+    showToast("success", "头像选择成功");
+  }, [showToast]);
 
   const handleDragEnter = useCallback((e: DragEvent) => {
     e.preventDefault(); e.stopPropagation();
@@ -181,33 +218,62 @@ export default function NewCharacterPage() {
         const text = await file.text();
         const parsed = JSON.parse(text);
         const data = parseCharacterJSON(parsed);
-        if (!data) { setError("无法识别此 JSON 的角色卡格式"); return; }
+        
+        if (!data) { 
+          setError("无法识别此 JSON 的角色卡格式");
+          showToast("error", "无法识别此 JSON 的角色卡格式，请检查文件内容");
+          return; 
+        }
 
-        const f = formRef.current;
+        // 使用当前状态值而不是 ref（ref 可能不是最新的）
+        const currentName = name;
+        const currentSetting = setting;
+        const currentGreeting = greeting;
+        const currentPersonality = personality;
+        const currentScenario = scenario;
+        const currentDialogueExamples = dialogueExamples;
+        const currentNickname = nickname;
+        const currentGroupGreeting = groupGreeting;
+        const currentMainPrompt = mainPrompt;
+        const currentPostHistoryInstructions = postHistoryInstructions;
 
-        if (data.name && !f.name) setName(data.name.slice(0, LIMITS.name));
-        if (data.setting && !f.setting) setSetting(data.setting.slice(0, LIMITS.setting));
-        if (data.greeting && !f.greeting) setGreeting(data.greeting.slice(0, LIMITS.greeting));
-        if (data.personality && !f.personality) setPersonality(data.personality.slice(0, LIMITS.personality));
-        if (data.scenario && !f.scenario) setScenario(data.scenario.slice(0, LIMITS.scenario));
-        if (data.dialogueExamples && !f.dialogueExamples) setDialogueExamples(data.dialogueExamples.slice(0, LIMITS.dialogue_examples));
-        if (data.nickname && !f.nickname) setNickname(data.nickname.slice(0, LIMITS.nickname));
-        if (data.groupGreeting && !f.groupGreeting) setGroupGreeting(data.groupGreeting.slice(0, LIMITS.group_greeting));
-        if (data.mainPrompt && !f.mainPrompt) setMainPrompt(data.mainPrompt.slice(0, LIMITS.main_prompt));
-        if (data.postHistoryInstructions && !f.postHistoryInstructions) setPostHistoryInstructions(data.postHistoryInstructions.slice(0, LIMITS.post_history_instructions));
+        // 智能填充：仅当目标字段为空时才填充
+        if (data.name && !currentName) setName(data.name.slice(0, LIMITS.name));
+        if (data.setting && !currentSetting) setSetting(data.setting.slice(0, LIMITS.setting));
+        if (data.greeting && !currentGreeting) setGreeting(data.greeting.slice(0, LIMITS.greeting));
+        if (data.personality && !currentPersonality) setPersonality(data.personality.slice(0, LIMITS.personality));
+        if (data.scenario && !currentScenario) setScenario(data.scenario.slice(0, LIMITS.scenario));
+        if (data.dialogueExamples && !currentDialogueExamples) setDialogueExamples(data.dialogueExamples.slice(0, LIMITS.dialogue_examples));
+        if (data.nickname && !currentNickname) setNickname(data.nickname.slice(0, LIMITS.nickname));
+        if (data.groupGreeting && !currentGroupGreeting) setGroupGreeting(data.groupGreeting.slice(0, LIMITS.group_greeting));
+        if (data.mainPrompt && !currentMainPrompt) setMainPrompt(data.mainPrompt.slice(0, LIMITS.main_prompt));
+        if (data.postHistoryInstructions && !currentPostHistoryInstructions) setPostHistoryInstructions(data.postHistoryInstructions.slice(0, LIMITS.post_history_instructions));
 
+        // 自动展开相关面板
         if (data.personality || data.scenario || data.dialogueExamples) setShowAdvanced(true);
         if (data.nickname || data.groupGreeting) setShowExtended(true);
         if (data.mainPrompt || data.postHistoryInstructions) setShowSystem(true);
 
         setJsonParsedName(data.name || file.name.replace(".json", ""));
         setError("");
-      } catch { setError("JSON 解析失败，请检查文件格式"); }
+        
+        // 统计成功导入的字段数量
+        const importedFields = Object.values(data).filter(Boolean).length;
+        showToast("success", `角色卡导入成功！已填充 ${importedFields} 个字段`);
+        
+      } catch (error) { 
+        const errorMessage = error instanceof SyntaxError 
+          ? "JSON 语法错误，请检查文件格式"
+          : "文件读取失败，请重试";
+        setError(errorMessage);
+        showToast("error", errorMessage);
+      }
       return;
     }
 
     setError("仅支持 .json 角色卡或 jpg/png/webp 头像");
-  }, [handleAvatarSelect]);
+    showToast("error", "仅支持 .json 角色卡或 jpg/png/webp 头像");
+  }, [handleAvatarSelect, showToast, name, setting, greeting, personality, scenario, dialogueExamples, nickname, groupGreeting, mainPrompt, postHistoryInstructions]);
 
   const canSave = useMemo(
     () => name.trim().length > 0 && setting.trim().length > 0 && greeting.trim().length > 0,
