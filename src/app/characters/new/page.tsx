@@ -39,7 +39,7 @@ interface ParsedCharacter {
 
 function parseCharacterJSON(raw: unknown): ParsedCharacter | null {
   if (!raw || typeof raw !== "object") return null;
-  const obj = raw as Record<string, unknown>;
+  const obj = raw as Record<string, string | undefined>;
   const result: ParsedCharacter = {};
 
   // 基础字段映射
