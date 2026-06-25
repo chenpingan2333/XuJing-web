@@ -76,7 +76,7 @@ export async function POST(
     userId: auth.userId,
     content: body.content,
     category: (body.category as any) || "FACT",
-    importance: body.importance || 0,
+    importance: (body.importance !== undefined ? String(body.importance) : "0.50"),
   });
 
   return jsonOk({
