@@ -32,7 +32,7 @@ export async function GET(
   return jsonOk(memories.map((m) => ({
     id: m.id,
     content: m.content,
-    category: (body.category as any) || "FACT",
+    category: m.category,
     importance: Number(m.importance ?? 0),
     createdAt: m.createdAt,
   })));
