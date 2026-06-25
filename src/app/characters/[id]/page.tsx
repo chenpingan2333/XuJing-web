@@ -48,10 +48,16 @@ export default function EditCharacterPage({ params }: { params: Promise<{ id: st
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showExtended, setShowExtended] = useState(false);
   const [showSystem, setShowSystem] = useState(false);
+  const [showPublic, setShowPublic] = useState(false);
+  const [oneLineIntro, setOneLineIntro] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
+  const [publicityFields, setPublicityFields] = useState<string[]>([]);
 
   // Avatar preview only — separate from avatar_url
   const [avatarPreview, setAvatarPreview] = useState("");
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [backgroundPreview, setBackgroundPreview] = useState("");
+  const [backgroundUploading, setBackgroundUploading] = useState(false);
 
   const fetchCharacter = useCallback(async () => {
     if (!token || !id) return;
@@ -78,7 +84,11 @@ export default function EditCharacterPage({ params }: { params: Promise<{ id: st
       setPostHistoryInstructions(c.postHistoryInstructions || "");
       setIsOfficial(c.isOfficial || false);
       setCharVersion(c.version || 1);
+      setOneLineIntro(c.oneLineIntro || "");
+      setIsPublic(c.isPublic || false);
+      setPublicityFields(Array.isArray(c.publicityFields) ? c.publicityFields : []);
       if (c.avatarUrl) setAvatarPreview(c.avatarUrl);
+      if (c.backgroundUrl) setBackgroundPreview(c.backgroundUrl);
       if (c.personality || c.scenario || c.dialogueExamples) setShowAdvanced(true);
       if (c.nickname || c.groupGreeting) setShowExtended(true);
       if (c.mainPrompt || c.postHistoryInstructions) setShowSystem(true);
@@ -129,6 +139,43 @@ export default function EditCharacterPage({ params }: { params: Promise<{ id: st
     }
   };
 
+  const handleBackgroundFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { setError("背景图文件不能超过 10MB"); return; }
+    if (!file.type.match(/^image\/(jpeg|png|webp)$/)) { setError("仅支持 jpg/png/webp 格式"); return; }
+
+    // 本地预览
+    const reader = new FileReader();
+    reader.onload = () => { setBackgroundPreview(reader.result as string); };
+    reader.readAsDataURL(file);
+
+    // 立即上传到服务器
+    try {
+      setBackgroundUploading(true);
+      setError("");
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token },
+        body: formData,
+      });
+      const uploadData = await res.json();
+      if (uploadData.success && uploadData.data?.url) {
+        const fullUrl = new URL(uploadData.data.url, window.location.origin).href;
+        setBackgroundUrl(fullUrl);
+        setBackgroundPreview(fullUrl);
+      } else {
+        setError(uploadData.error || "背景图上传失败");
+      }
+    } catch {
+      setError("背景图上传失败，请重试");
+    } finally {
+      setBackgroundUploading(false);
+    }
+  };
+
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
@@ -163,6 +210,9 @@ export default function EditCharacterPage({ params }: { params: Promise<{ id: st
           group_greeting: groupGreeting || null,
           main_prompt: mainPrompt || null,
           post_history_instructions: postHistoryInstructions || null,
+          one_line_intro: oneLineIntro || null,
+          is_public: isPublic,
+          publicity_fields: publicityFields.length > 0 ? publicityFields : null,
         }),
       });
       const data = await res.json();
@@ -246,10 +296,22 @@ export default function EditCharacterPage({ params }: { params: Promise<{ id: st
           <div className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-600">{successMsg}</div>
         )}
         {isOfficial && (
-          <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-600">
-            官方角色 — 不可编辑或删除
+          <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
+            <strong>⚠️ 版权保护：</strong>此角色为官方角色，版权归叙境项目组所有。未经授权，禁止复制、修改、传播或用于商业用途。违者将追究法律责任。
           </div>
         )}
+
+        {/* 背景图预览层 */}
+        {backgroundPreview ? (
+          <div className="relative w-full h-40 rounded-lg overflow-hidden">
+            <img src={backgroundPreview} alt="背景预览" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+          </div>
+        ) : isOfficial ? (
+          <div className="w-full h-40 rounded-lg bg-gray-100 flex items-center justify-center">
+            <span className="text-gray-400 text-sm">暂无背景图片</span>
+          </div>
+        ) : null}
 
         <section>
           <h2 className="text-sm font-medium text-gray-500 mb-3">基础信息</h2>
@@ -276,28 +338,48 @@ export default function EditCharacterPage({ params }: { params: Promise<{ id: st
           </div>
 
           <div className="mb-4">
+            <label className="block text-sm text-gray-600 mb-1">背景图</label>
+            <div className="flex items-center gap-3">
+              <div className="w-32 h-20 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center">
+                {backgroundPreview ? (
+                  <img src={backgroundPreview} alt="背景预览" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-gray-300 text-xl">+</span>
+                )}
+              </div>
+              {!isOfficial && (
+                <label className={`rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 cursor-pointer hover:bg-gray-50 ${backgroundUploading ? "opacity-50 pointer-events-none" : ""}`}>
+                  {backgroundUploading ? "上传中…" : "更换背景"}
+                  <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleBackgroundFile} className="hidden" disabled={backgroundUploading} />
+                </label>
+              )}
+              <span className="text-xs text-gray-400">jpg/png/webp, 建议 16:10</span>
+            </div>
+          </div>
+
+          <div className="mb-4">
             <label className="block text-sm text-gray-600 mb-1">角色名称 *</label>
-            <input type="text" value={name} readOnly={isOfficial}
+            <input type="text" value={name} readOnly={isOfficial} disabled={isOfficial}
               onChange={(e) => { if (e.target.value.length <= LIMITS.name) setName(e.target.value); }}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 disabled:bg-gray-50 disabled:text-gray-500" />
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 bg-muted text-muted-foreground cursor-not-allowed" />
             <div className="text-right text-xs text-gray-400 mt-0.5">{name.length} / {LIMITS.name}</div>
           </div>
 
           <div className="mb-4">
             <label className="block text-sm text-gray-600 mb-1">角色设定 *</label>
-            <textarea value={setting} readOnly={isOfficial}
+            <textarea value={setting} readOnly={isOfficial} disabled={isOfficial}
               onChange={(e) => { if (e.target.value.length <= LIMITS.setting) setSetting(e.target.value); }}
               rows={6}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 resize-none disabled:bg-gray-50 disabled:text-gray-500" />
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 resize-none bg-muted text-muted-foreground cursor-not-allowed" />
             <div className="text-right text-xs text-gray-400 mt-0.5">{setting.length} / {LIMITS.setting}</div>
           </div>
 
           <div className="mb-4">
             <label className="block text-sm text-gray-600 mb-1">开场白 *</label>
-            <textarea value={greeting} readOnly={isOfficial}
+            <textarea value={greeting} readOnly={isOfficial} disabled={isOfficial}
               onChange={(e) => { if (e.target.value.length <= LIMITS.greeting) setGreeting(e.target.value); }}
               rows={4}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 resize-none disabled:bg-gray-50 disabled:text-gray-500" />
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 resize-none bg-muted text-muted-foreground cursor-not-allowed" />
             <div className="text-right text-xs text-gray-400 mt-0.5">{greeting.length} / {LIMITS.greeting}</div>
           </div>
         </section>
@@ -312,28 +394,28 @@ export default function EditCharacterPage({ params }: { params: Promise<{ id: st
             <div className="mt-3 space-y-4">
               <div>
                 <label className="block text-sm text-gray-600 mb-1">性格特点</label>
-                <textarea value={personality} readOnly={isOfficial}
+                <textarea value={personality} readOnly={isOfficial} disabled={isOfficial}
                   onChange={(e) => { if (e.target.value.length <= LIMITS.personality) setPersonality(e.target.value); }}
                   rows={4}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 resize-none disabled:bg-gray-50 disabled:text-gray-500" />
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 resize-none bg-muted text-muted-foreground cursor-not-allowed" />
                 <div className="text-right text-xs text-gray-400 mt-0.5">{personality.length} / {LIMITS.personality}</div>
               </div>
 
               <div>
                 <label className="block text-sm text-gray-600 mb-1">情景设定</label>
-                <textarea value={scenario} readOnly={isOfficial}
+                <textarea value={scenario} readOnly={isOfficial} disabled={isOfficial}
                   onChange={(e) => { if (e.target.value.length <= LIMITS.scenario) setScenario(e.target.value); }}
                   rows={4}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 resize-none disabled:bg-gray-50 disabled:text-gray-500" />
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 resize-none bg-muted text-muted-foreground cursor-not-allowed" />
                 <div className="text-right text-xs text-gray-400 mt-0.5">{scenario.length} / {LIMITS.scenario}</div>
               </div>
 
               <div>
                 <label className="block text-sm text-gray-600 mb-1">对话示例</label>
-                <textarea value={dialogueExamples} readOnly={isOfficial}
+                <textarea value={dialogueExamples} readOnly={isOfficial} disabled={isOfficial}
                   onChange={(e) => { if (e.target.value.length <= LIMITS.dialogue_examples) setDialogueExamples(e.target.value); }}
                   rows={4}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 resize-none font-mono disabled:bg-gray-50 disabled:text-gray-500" />
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 resize-none font-mono bg-muted text-muted-foreground cursor-not-allowed" />
                 <div className="flex justify-between items-center mt-0.5">
                   <span className="text-xs text-gray-400">格式：{"{{char}}:"} / {"{{user}}:"}</span>
                   <span className="text-xs text-gray-400">{dialogueExamples.length} / {LIMITS.dialogue_examples}</span>
@@ -353,18 +435,18 @@ export default function EditCharacterPage({ params }: { params: Promise<{ id: st
             <div className="mt-3 space-y-4">
               <div>
                 <label className="block text-sm text-gray-600 mb-1">昵称</label>
-                <input type="text" value={nickname} readOnly={isOfficial}
+                <input type="text" value={nickname} readOnly={isOfficial} disabled={isOfficial}
                   onChange={(e) => { if (e.target.value.length <= LIMITS.nickname) setNickname(e.target.value); }}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 disabled:bg-gray-50 disabled:text-gray-500" />
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 bg-muted text-muted-foreground cursor-not-allowed" />
                 <div className="text-right text-xs text-gray-400 mt-0.5">{nickname.length} / {LIMITS.nickname}</div>
               </div>
 
               <div>
                 <label className="block text-sm text-gray-600 mb-1">群聊开场白</label>
-                <textarea value={groupGreeting} readOnly={isOfficial}
+                <textarea value={groupGreeting} readOnly={isOfficial} disabled={isOfficial}
                   onChange={(e) => { if (e.target.value.length <= LIMITS.group_greeting) setGroupGreeting(e.target.value); }}
                   rows={3}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 resize-none disabled:bg-gray-50 disabled:text-gray-500" />
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 resize-none bg-muted text-muted-foreground cursor-not-allowed" />
                 <div className="text-right text-xs text-gray-400 mt-0.5">{groupGreeting.length} / {LIMITS.group_greeting}</div>
               </div>
             </div>
@@ -381,10 +463,10 @@ export default function EditCharacterPage({ params }: { params: Promise<{ id: st
             <div className="mt-3 space-y-4">
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Main Prompt</label>
-                <textarea value={mainPrompt} readOnly={isOfficial}
+                <textarea value={mainPrompt} readOnly={isOfficial} disabled={isOfficial}
                   onChange={(e) => { if (e.target.value.length <= LIMITS.main_prompt) setMainPrompt(e.target.value); }}
                   rows={6}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 resize-none font-mono disabled:bg-gray-50 disabled:text-gray-500" />
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 resize-none font-mono bg-muted text-muted-foreground cursor-not-allowed" />
                 <div className="flex justify-between items-center mt-0.5">
                   <span className="text-xs text-gray-400">{"支持 {{original}}"}</span>
                   <span className="text-xs text-gray-400">{mainPrompt.length} / {LIMITS.main_prompt}</span>
@@ -393,10 +475,10 @@ export default function EditCharacterPage({ params }: { params: Promise<{ id: st
 
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Post History Instructions</label>
-                <textarea value={postHistoryInstructions} readOnly={isOfficial}
+                <textarea value={postHistoryInstructions} readOnly={isOfficial} disabled={isOfficial}
                   onChange={(e) => { if (e.target.value.length <= LIMITS.post_history_instructions) setPostHistoryInstructions(e.target.value); }}
                   rows={6}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 resize-none font-mono disabled:bg-gray-50 disabled:text-gray-500" />
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 resize-none font-mono bg-muted text-muted-foreground cursor-not-allowed" />
                 <div className="flex justify-between items-center mt-0.5">
                   <span className="text-xs text-gray-400">{"支持 {{original}}"}</span>
                   <span className="text-xs text-gray-400">{postHistoryInstructions.length} / {LIMITS.post_history_instructions}</span>
@@ -405,7 +487,67 @@ export default function EditCharacterPage({ params }: { params: Promise<{ id: st
             </div>
           )}
         </section>
-
+        {/* ===== Plaza Publish ===== */}
+        <section>
+          <button onClick={() => setShowPublic(!showPublic)} className="flex items-center gap-2 group">
+            <span className="text-[11px] font-medium text-neutral-800 tracking-[0.15em] uppercase group-hover:text-stone-600 transition-colors">广场发布</span>
+            <svg width="8" height="8" viewBox="0 0 8 8" className={`text-stone-300 transition-transform duration-200 ${showPublic ? "rotate-90" : ""}`}><path d="M3 1.5L5.5 4 3 6.5" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
+          {showPublic && (
+            <div className="mt-6 space-y-7">
+              <div>
+                <div className="flex items-baseline justify-between mb-2">
+                  <span className="text-xs text-neutral-800 font-medium">一句话简介</span>
+           
+       <span className="text-[10px] text-stone-300 tabular-nums">{oneLineIntro.length}/255</span>
+                </div>
+                <input type="text" value={oneLineIntro} readOnly={isOfficial} disabled={isOfficial} onChange={(e) => { if (e.target.value.length <= 255) setOneLineIntro(e.target.value); }} placeholder="用一句话介绍你的角色，将在广场中展示" className="w-full bg-transparent py-2 text-sm text-neutral-800 placeholder:text-stone-400 outline-none border-b border-stone-200 focus:border-stone-400 transition-colors duration-300 bg-muted text-muted-foreground cursor-not-allowed" />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-neutral-800 font-medium">公开发布到广场</span>
+                <button
+                  onClick={() => setIsPublic(!isPublic)}
+                  disabled={isOfficial}
+                  className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${isPublic ? "bg-neutral-800" : "bg-stone-200"} disabled:opacity-40`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${isPublic ? "translate-x-5" : ""}`} />
+                </button>
+              </div>
+              {isPublic && (
+                <div>
+                  <span className="text-xs text-neutral-800 font-medium block mb-3">选择展示字段</span>
+                  <div className="space-y-2">
+                    {[
+                      { key: "name", label: "角色名称" },
+                      { key: "setting", label: "角色设定" },
+                      { key: "greeting", label: "开场白" },
+                      { key: "personality", label: "性格" },
+                      { key: "scenario", label: "场景" },
+                      { key: "nickname", label: "昵称" },
+                    ].map((field) => (
+                      <label key={field.key} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={publicityFields.includes(field.key)}
+                          disabled={isOfficial}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setPublicityFields([...publicityFields, field.key]);
+                            } else {
+                              setPublicityFields(publicityFields.filter(f => f !== field.key));
+                            }
+                          }}
+                          className="w-3.5 h-3.5 rounded border-stone-300 text-neutral-800 focus:ring-neutral-500 disabled:opacity-40"
+                        />
+                        <span className="text-xs text-neutral-600">{field.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
         {charVersion > 1 && (
           <p className="text-xs text-gray-400 text-center">版本 {charVersion}</p>
         )}

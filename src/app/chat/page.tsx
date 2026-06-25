@@ -4,6 +4,8 @@ import { useAuth } from "@/lib/use-auth";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
+import { toAbsoluteUrl } from "@/lib/image-utils";
 
 interface ChatPreview {
   characterId: string;
@@ -109,7 +111,7 @@ export default function ChatListPage() {
             >
               <div className="w-12 h-12 rounded-full bg-stone-200 overflow-hidden shrink-0 flex items-center justify-center">
                 {chat.avatarUrl ? (
-                  <img src={chat.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  <Image src={toAbsoluteUrl(chat.avatarUrl)} alt="" width={48} height={48} className="object-cover" />
                 ) : (
                   <span className="text-stone-400 text-sm font-medium">{chat.characterName.slice(0, 2)}</span>
                 )}
@@ -151,7 +153,7 @@ function BottomNav({ current }: { current: string }) {
   const tabs = [
     { key: "characters", label: "角色", href: "/characters", icon: CharsIcon },
     { key: "chat", label: "聊天", href: "/chat", icon: ChatIcon },
-    { key: "shop", label: "商店", href: "/shop", icon: ShopIcon },
+    { key: "shop", label: "广场", href: "/plaza", icon: ShopIcon },
     { key: "me", label: "我的", href: "/me", icon: MeIcon },
   ] as const;
 

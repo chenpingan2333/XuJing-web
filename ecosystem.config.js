@@ -11,12 +11,13 @@ module.exports = {
     env: {
       NODE_ENV: 'production',
       NODE_OPTIONS: "",
+      HOSTNAME: '0.0.0.0',
       PORT: 3003,
 
-      JWT_SECRET: '3fffe1ab037cd765c506adb0410742751a8fcc8fab52c69dc757f86724429a0b',
-      API_KEY_ENCRYPTION_KEY: '0b55d007ad6458c1dbf9554c8fe70c8f958d196fbd363c793a896526578005be',
+      JWT_SECRET: '18b7fbc0bed0dab5f6dc216a5dd9be72e8bbfe5f3c10ed309627b4d557ae8d37',
+      API_KEY_ENCRYPTION_KEY: 'd0b9979dcd150bb44e00eeb17513476c6628d0097d4f190b5fa75c6e1e6d3cf4',
       DATABASE_URL: 'postgresql://postgres:zzx20141220!@127.0.0.1:5432/xujing',
-      PLATFORM_API_KEY: 'sk-c72d9c6c76e5499092136ebbe04ab2c5',
+      PLATFORM_API_KEY: 'sk-3c8b610ef5be4791a06c93c4b5078301',
       PLATFORM_API_URL: 'https://api.deepseek.com',
       PLATFORM_MODEL_ID: 'deepseek-v4-flash'
     }

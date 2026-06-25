@@ -30,13 +30,11 @@ export const CreateCharacterSchema = z.object({
     .max(200, "开场白最长 200 字"),
 
   avatar_url: z.string()
-    .url("头像 URL 格式无效")
     .max(500, "头像 URL 最长 500 个字符")
     .optional()
     .or(z.literal("")),
 
   background_url: z.string()
-    .url("背景图 URL 格式无效")
     .max(500, "背景图 URL 最长 500 个字符")
     .optional()
     .or(z.literal("")),
@@ -76,6 +74,12 @@ export const CreateCharacterSchema = z.object({
     .optional()
     .or(z.literal("")),
 
+  one_line_intro: z.string()
+    .max(255, "一句话介绍最长 255 字")
+    .optional()
+    .or(z.literal("")),
+  is_public: z.boolean().optional(),
+  publicity_fields: z.array(z.string()).optional(),
   extra_fields: z.record(z.unknown()).optional(),
 });
 
@@ -103,13 +107,11 @@ export const UpdateCharacterSchema = z.object({
     .optional(),
 
   avatar_url: z.string()
-    .url("头像 URL 格式无效")
     .max(500, "头像 URL 最长 500 个字符")
     .optional()
     .nullable(),
 
   background_url: z.string()
-    .url("背景图 URL 格式无效")
     .max(500, "背景图 URL 最长 500 个字符")
     .optional()
     .nullable(),
@@ -149,6 +151,12 @@ export const UpdateCharacterSchema = z.object({
     .optional()
     .nullable(),
 
+  one_line_intro: z.string()
+    .max(255, "一句话介绍最长 255 字")
+    .optional()
+    .nullable(),
+  is_public: z.boolean().optional().nullable(),
+  publicity_fields: z.array(z.string()).optional().nullable(),
   extra_fields: z.record(z.unknown()).optional().nullable(),
 });
 
@@ -163,8 +171,8 @@ export const ImportXujingCharacterSchema = z.object({
   name: z.string().min(1).max(10).trim(),
   setting: z.string().min(1).max(10000),
   greeting: z.string().min(1).max(200),
-  avatar_url: z.string().url().max(500).optional().or(z.literal("")),
-  background_url: z.string().url().max(500).optional().or(z.literal("")),
+  avatar_url: z.string().max(500).optional().or(z.literal("")),
+  background_url: z.string().max(500).optional().or(z.literal("")),
   personality: z.string().max(10000).optional().or(z.literal("")),
   scenario: z.string().max(10000).optional().or(z.literal("")),
   dialogue_examples: z.string().max(500).optional().or(z.literal("")),

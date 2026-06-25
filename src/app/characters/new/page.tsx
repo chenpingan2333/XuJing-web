@@ -136,6 +136,9 @@ export default function NewCharacterPage() {
   const [groupGreeting, setGroupGreeting] = useState("");
   const [mainPrompt, setMainPrompt] = useState("");
   const [postHistoryInstructions, setPostHistoryInstructions] = useState("");
+  const [oneLineIntro, setOneLineIntro] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
+  const [publicityFields, setPublicityFields] = useState<string[]>([]);
 
   const [avatarPreview, setAvatarPreview] = useState("");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -147,12 +150,14 @@ export default function NewCharacterPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showSystem, setShowSystem] = useState(false);
   const [showExtended, setShowExtended] = useState(false);
+  const [showPublic, setShowPublic] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [jsonParsedName, setJsonParsedName] = useState("");
 
   const formRef = useRef({
     name, greeting, setting, personality, scenario,
     dialogueExamples, nickname, groupGreeting, mainPrompt, postHistoryInstructions,
+    oneLineIntro, isPublic, publicityFields,
   });
 
   useEffect(() => {
@@ -284,6 +289,7 @@ export default function NewCharacterPage() {
     canSave, token, avatarFile,
     name, greeting, setting, personality, scenario,
     dialogueExamples, nickname, groupGreeting, mainPrompt, postHistoryInstructions,
+    oneLineIntro, isPublic, publicityFields,
   });
 
   const handleSave = useCallback(async () => {
@@ -326,6 +332,9 @@ export default function NewCharacterPage() {
           group_greeting: s.groupGreeting || undefined,
           main_prompt: s.mainPrompt || undefined,
           post_history_instructions: s.postHistoryInstructions || undefined,
+          one_line_intro: s.oneLineIntro || undefined,
+          is_public: s.isPublic,
+          publicity_fields: s.publicityFields.length > 0 ? s.publicityFields : undefined,
         }),
       });
 
@@ -355,12 +364,14 @@ export default function NewCharacterPage() {
   formRef.current = {
     name, greeting, setting, personality, scenario,
     dialogueExamples, nickname, groupGreeting, mainPrompt, postHistoryInstructions,
+    oneLineIntro, isPublic, publicityFields,
   };
 
   saveRef.current = {
     canSave, token, avatarFile,
     name, greeting, setting, personality, scenario,
     dialogueExamples, nickname, groupGreeting, mainPrompt, postHistoryInstructions,
+    oneLineIntro, isPublic, publicityFields,
   };
 
   // ═══════════════════════════════════════════════════════════
@@ -525,6 +536,65 @@ export default function NewCharacterPage() {
             <div className="mt-6 space-y-7">
               <TextField label="Main prompt" value={mainPrompt} onChange={setMainPrompt} max={LIMITS.main_prompt} placeholder={"用于覆盖预设中的main prompt项，使用{{original}}来引用预设中的原提示词"} rows={5} mono hint={"支持 {{original}}"} />
               <TextField label="Post-history instructions" value={postHistoryInstructions} onChange={setPostHistoryInstructions} max={LIMITS.post_history_instructions} placeholder={"用来覆盖预设中的post-history instructions项，使用{{original}}来引用预设中的原提示词"} rows={4} mono hint={"支持 {{original}}"} />
+            </div>
+          )}
+        </section>
+
+        {/* ===== 折叠区 4：广场发布 ===== */}
+        <section>
+          <button onClick={() => setShowPublic(!showPublic)} className="flex items-center gap-2 group">
+            <span className="text-[11px] font-medium text-neutral-800 tracking-[0.15em] uppercase group-hover:text-stone-600 transition-colors">广场发布</span>
+            <svg width="8" height="8" viewBox="0 0 8 8" className={`text-stone-300 transition-transform duration-200 ${showPublic ? "rotate-90" : ""}`}><path d="M3 1.5L5.5 4 3 6.5" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
+          {showPublic && (
+            <div className="mt-6 space-y-7">
+              <div>
+                <div className="flex items-baseline justify-between mb-2">
+                  <span className="text-xs text-neutral-800 font-medium">一句话简介</span>
+                  <span className="text-[10px] text-stone-300 tabular-nums">{oneLineIntro.length}/255</span>
+                </div>
+                <input type="text" value={oneLineIntro} onChange={(e) => { if (e.target.value.length <= 255) setOneLineIntro(e.target.value); }} placeholder="用一句话介绍你的角色，将在广场中展示" className="w-full bg-transparent py-2 text-sm text-neutral-800 placeholder:text-stone-400 outline-none border-b border-stone-200 focus:border-stone-400 transition-colors duration-300" />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-neutral-800 font-medium">公开发布到广场</span>
+                <button
+                  onClick={() => setIsPublic(!isPublic)}
+                  className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${isPublic ? 'bg-neutral-800' : 'bg-stone-200'}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${isPublic ? 'translate-x-5' : ''}`} />
+                </button>
+              </div>
+              {isPublic && (
+                <div>
+                  <span className="text-xs text-neutral-800 font-medium block mb-3">选择展示字段</span>
+                  <div className="space-y-2">
+                    {[
+                      { key: 'name', label: '角色名称' },
+                      { key: 'setting', label: '角色设定' },
+                      { key: 'greeting', label: '开场白' },
+                      { key: 'personality', label: '性格' },
+                      { key: 'scenario', label: '场景' },
+                      { key: 'nickname', label: '昵称' },
+                    ].map((field) => (
+                      <label key={field.key} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={publicityFields.includes(field.key)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setPublicityFields([...publicityFields, field.key]);
+                            } else {
+                              setPublicityFields(publicityFields.filter(f => f !== field.key));
+                            }
+                          }}
+                          className="w-3.5 h-3.5 rounded border-stone-300 text-neutral-800 focus:ring-neutral-500"
+                        />
+                        <span className="text-xs text-neutral-600">{field.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </section>

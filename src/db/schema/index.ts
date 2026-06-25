@@ -9,5 +9,7 @@ export { vipRecords } from "./vip-records";
 export { adminLogs } from "./admin-logs";
 export { starDiamondTransactions } from "./star-diamond-transactions";
 export { userCharacterSettings } from "./user-character-settings";
+export { userFollows } from "./user-follows";
+export { characterComments } from "./character-comments";
 export { auditLogs, actorTypeEnum, actionCategoryEnum, actionResultEnum, targetTypeEnum, AuditAction } from "./audit-logs";
 export type { AuditActionType } from "./audit-logs";

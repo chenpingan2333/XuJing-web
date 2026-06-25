@@ -31,15 +31,24 @@ export async function GET(
     return jsonErr("角色不存在", 404);
   }
 
-  // Ownership check: non-official characters are private
-  if (!character.isOfficial && character.userId !== auth.userId) {
-    return jsonErr("无权访问此角色的对话", 403);
+  // Multi-tenant isolation + VIP blocking
+  if (!character.isOfficial) {
+    if (character.userId !== auth.userId) {
+      // Non-owner must be public + VIP
+      if (!character.isPublic) {
+        return jsonErr("无权访问此角色的对话", 403);
+      }
+      if (auth.subscription !== "vip") {
+        return jsonErr("您无权限和该角色聊天，请联系叙境项目组", 403);
+      }
+    }
   }
 
   // Parse pagination
   const url = new URL(req.url);
   const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "50", 10) || 50, 100);
 
+  // 🔴 防串台：严格绑定 auth.userId，确保只能查询当前用户的消息
   const messages = await messageRepository.findHistory(
     characterId,
     auth.userId,
@@ -63,7 +72,7 @@ export async function GET(
     }
   }
 
-  // Memory status for frontend display
+  // 🔴 防串台：严格绑定 auth.userId，确保只能查询当前用户的记忆
   const memCount = await memoryRepository.countByCharacter(characterId, auth.userId);
   const isVip = auth.subscription === "vip";
   const memoryLimit = isVip ? 10000 : 100;
@@ -91,6 +100,7 @@ export async function DELETE(
     return jsonErr("无权操作", 403);
   }
 
+  // 🔴 防串台：严格绑定 auth.userId，确保只能删除当前用户的消息
   const result = await assetService.softDeleteMessagesByCharacter(characterId, auth.userId, {
     actorId: auth.userId,
     actorIp: req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "unknown",
@@ -103,6 +113,9 @@ export async function DELETE(
   if (!result.success) {
     return jsonErr(result.error ?? "删除失败", 500);
   }
+
+  // 🔴 防串台：严格绑定 auth.userId，确保只能删除当前用户的记忆
+  await memoryRepository.deleteByUserAndCharacter(characterId, auth.userId);
 
   return jsonOk({ deleted: true, affectedCount: result.affectedCount });
 }

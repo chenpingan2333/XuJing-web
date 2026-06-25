@@ -10,6 +10,7 @@ import { requireAuth } from "../_base/auth";
 import { rateLimit } from "../_base/rate-limit";
 import { characterService, CharacterError } from "@/server/services/character.service";
 import { CreateCharacterSchema } from "./validations";
+import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { characters } from "@/db/schema/characters";
 import { eq, and, count } from "drizzle-orm";
@@ -82,6 +83,8 @@ export async function POST(req: Request) {
 
   try {
     const character = await characterService.createCharacter(auth, parsed.data);
+    revalidatePath("/plaza");
+    revalidatePath("/api/plaza");
     return jsonOk(character, 201);
   } catch (err) {
     if (err instanceof CharacterError) return jsonErr(err.message, err.status);

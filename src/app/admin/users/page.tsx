@@ -38,6 +38,9 @@ const VIP_OPTIONS = [
 export default function AdminUsersPage() {
   const { token } = useAuth();
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [fetching, setFetching] = useState(true);
   const [query, setQuery] = useState("");
   const [confirm, setConfirm] = useState<{
@@ -53,25 +56,46 @@ export default function AdminUsersPage() {
     setTimeout(() => setToast(null), 2500);
   };
 
-  const fetchUsers = useCallback(async (q?: string) => {
+ const fetchUsers = useCallback(async (q?: string) => {
     if (!token) return;
     setFetching(true);
     try {
-      const url = q
-        ? "/api/admin/users?q=" + encodeURIComponent(q)
-        : "/api/admin/users";
+      const params = new URLSearchParams();
+      params.set('page', String(currentPage));
+      params.set('limit', String(pageSize));
+      if (q) params.set('q', q);
+      const url = `/api/admin/users?${params.toString()}`;
+      
       const res = await fetch(url, {
         headers: { Authorization: "Bearer " + token },
+        cache: 'no-store' // ✅ 彻底击碎幽灵缓存
       });
-      const data = await res.json();
-      if (data.success) setUsers(data.data as UserRow[]);
-    } catch { /* ignore */ }
-    setFetching(false);
-  }, [token]);
+      
+      const json = await res.json();
+      
+      // ✅ 修复解构逻辑：判断外层包装，提取内层数据
+      if (json.success || json.success === undefined) { 
+        const payload = json.data || json; // 脱掉包装层
+        
+        // 兼容两种可能的数据格式，并做安全回退
+        setUsers(payload.users || payload.data || []);
+        setTotalUsers(payload.total || 0);
+      } else {
+        showToast("获取用户数据失败");
+      }
+    } catch (err) {
+      console.error("Fetch users error:", err);
+    } finally {
+      setFetching(false);
+    }
+  }, [token, currentPage, pageSize]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-  const handleSearch = () => fetchUsers(query.trim() || undefined);
+  const handleSearch = () => {
+    setCurrentPage(1);
+    fetchUsers(query.trim() || undefined);
+  };
 
   const execAction = async (userId: string, action: string, value?: unknown) => {
     if (!token) return;
@@ -353,6 +377,60 @@ export default function AdminUsersPage() {
           </>
         )}
       </div>
+
+      {/* ─── Pagination ─── */}
+      {!fetching && users.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 md:px-8 py-3 border-t border-stone-100 bg-white">
+          {/* Page size selector */}
+          <div className="flex items-center gap-2 text-xs text-stone-500">
+            <span>每页</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="rounded-md border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 outline-none focus:border-stone-400"
+            >
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={200}>200</option>
+              <option value={500}>500</option>
+              <option value={1000}>1000</option>
+              <option value={5000}>5000</option>
+              <option value={10000}>10000</option>
+            </select>
+            <span>条</span>
+          </div>
+
+          {/* Page navigation */}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage <= 1}
+              className="min-h-[36px] rounded-md border border-stone-200 px-3 py-1.5 text-xs text-stone-600 hover:bg-stone-50 disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 transition-all"
+            >
+              上一页
+            </button>
+            <span className="px-2 text-xs text-stone-500">
+              第 {currentPage} 页
+            </span>
+            <button
+              onClick={() => setCurrentPage((p) => p + 1)}
+              disabled={currentPage * pageSize >= totalUsers}
+              className="min-h-[36px] rounded-md border border-stone-200 px-3 py-1.5 text-xs text-stone-600 hover:bg-stone-50 disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 transition-all"
+            >
+              下一页
+            </button>
+          </div>
+
+          {/* Total count */}
+          <div className="text-xs text-stone-400">
+            共 {totalUsers} 个用户
+          </div>
+        </div>
+      )}
 
       {/* ─── VIP modal ─── */}
       {vipModal && (

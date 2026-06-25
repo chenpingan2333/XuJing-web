@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/use-auth";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDisplayId } from "@/lib/utils";
 import { useApiStatus } from "@/lib/use-api-status";
@@ -10,6 +10,10 @@ export default function MePage() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const { configured, configName } = useApiStatus();
+
+  const [editNickname, setEditNickname] = useState(user?.nickname || "");
+  const [editAvatar, setEditAvatar] = useState(user?.avatarUrl || "");
+  const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -43,6 +47,52 @@ export default function MePage() {
 
   const isVip = user.subscription === "vip";
 
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      const token = localStorage.getItem("token") || localStorage.getItem("xujing_token");
+      const res = await fetch("/api/user/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ nickname: editNickname, avatarUrl: editAvatar }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        alert("创作者档案资料保存成功！");
+        window.location.reload();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const token = localStorage.getItem("token") || localStorage.getItem("xujing_token");
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      const d = await res.json();
+      if (d.success && d.url) {
+        setEditAvatar(d.url);
+        alert("头像上传就绪，请点击下方保存！");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <div className="flex h-dvh flex-col">
       {/* Header */}
@@ -59,12 +109,16 @@ export default function MePage() {
       {/* Profile Card */}
       <div className="mx-5 rounded-xl bg-gray-50 p-5">
         <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-200 text-xl text-gray-400">
-            {user.userId.slice(0, 2).toUpperCase()}
+          <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gray-200 text-xl text-gray-400 overflow-hidden">
+            {editAvatar ? (
+              <img src={editAvatar} alt="avatar" className="h-full w-full object-cover" />
+            ) : (
+              user.userId.slice(0, 2).toUpperCase()
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-base font-medium text-gray-900 truncate">
-              叙境旅人
+              {user.nickname || "叙境旅人"}
             </div>
             <div className="mt-0.5 text-xs text-gray-400 truncate font-mono">
               {displayId ?? "—"}
@@ -76,6 +130,40 @@ export default function MePage() {
             </span>
           </div>
         </div>
+
+        {/* Avatar Upload */}
+        <div className="mt-3">
+          <label className="inline-flex items-center gap-2 rounded-lg bg-neutral-900 px-3 py-2 text-xs text-stone-50 cursor-pointer hover:bg-neutral-800 transition-colors">
+            <span>更换头像</span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarUpload}
+              className="hidden"
+            />
+          </label>
+        </div>
+
+        {/* Nickname Edit */}
+        <div className="mt-3 flex flex-col gap-1.5">
+          <label className="text-xs text-gray-500">创作者昵称</label>
+          <input
+            type="text"
+            value={editNickname}
+            onChange={(e) => setEditNickname(e.target.value)}
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-neutral-900"
+            placeholder="输入你的尊贵昵称..."
+          />
+        </div>
+
+        {/* Save Button */}
+        <button
+          onClick={handleSaveProfile}
+          disabled={savingProfile}
+          className="mt-3 w-full rounded-lg bg-neutral-900 py-2.5 text-xs font-medium text-stone-50 hover:bg-neutral-800 disabled:bg-gray-300 transition-colors"
+        >
+          {savingProfile ? "正在同步境域..." : "保存个人资料"}
+        </button>
       </div>
 
       {/* Status info */}

@@ -11,6 +11,7 @@ import { requireAuth } from "../../_base/auth";
 import { rateLimit } from "../../_base/rate-limit";
 import { characterService, CharacterError } from "@/server/services/character.service";
 import { UpdateCharacterSchema } from "../validations";
+import { revalidatePath } from "next/cache";
 
 // ——— GET: 详情 ———
 export async function GET(
@@ -66,6 +67,8 @@ export async function PUT(
 
   try {
     const updated = await characterService.updateCharacter(auth, id, parsed.data);
+    revalidatePath("/plaza");
+    revalidatePath("/api/plaza");
     return jsonOk(updated);
   } catch (err) {
     if (err instanceof CharacterError) return jsonErr(err.message, err.status);

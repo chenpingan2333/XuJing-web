@@ -6,6 +6,8 @@ import type { SoftDeleteOptions } from "@/services/AssetService";
 
 export class MessageRepository {
   async findById(id: string) {
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_RE.test(id)) return null;
     const [r] = await db.select().from(messages).where(eq(messages.id, id)).limit(1);
     return r ?? null;
   }
@@ -29,6 +31,8 @@ export class MessageRepository {
 
   /** 更新消息内容 */
   async updateContent(id: string, content: string) {
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_RE.test(id)) return null;
     const [result] = await db.update(messages).set({ content }).where(eq(messages.id, id)).returning();
     return result ?? null;
   }

@@ -5,6 +5,8 @@ import { safeDate } from "@/lib/utils";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
+import { toAbsoluteUrl } from "@/lib/image-utils";
 import ImportCharacterModal from "@/components/ImportCharacterModal";
 
 interface CharacterRow {
@@ -265,9 +267,9 @@ function CharacterCard({ character: c }: { character: CharacterRow }) {
       href={"/characters/" + c.id}
       className="group flex flex-col rounded-2xl bg-white p-3.5 transition-all duration-200 hover:bg-stone-50/80 active:scale-[0.98]"
     >
-      <div className="w-full aspect-square rounded-xl bg-stone-100 overflow-hidden mb-3">
+      <div className="relative w-full aspect-square rounded-xl bg-stone-100 overflow-hidden mb-3">
         {c.avatarUrl ? (
-          <img src={c.avatarUrl} alt={c.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+          <Image src={toAbsoluteUrl(c.avatarUrl!)} alt={c.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover transition-transform duration-300 group-hover:scale-105" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <span className="text-stone-300 text-3xl font-light select-none">{c.name?.charAt(0) ?? "?"}</span>
@@ -299,7 +301,7 @@ function BottomNav({ current }: { current: string }) {
   const tabs = [
     { key: "characters", label: "角色", href: "/characters", icon: CharsIcon },
     { key: "chat", label: "聊天", href: "/chat", icon: ChatIcon },
-    { key: "shop", label: "商店", href: "/shop", icon: ShopIcon },
+    { key: "shop", label: "广场", href: "/plaza", icon: ShopIcon },
     { key: "me", label: "我的", href: "/me", icon: MeIcon },
   ] as const;
 

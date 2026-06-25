@@ -24,8 +24,8 @@ export default function AdminDashboard() {
     fetch("/api/admin/users", { headers: { Authorization: "Bearer " + token } })
       .then((r) => r.json())
       .then((d) => {
-        if (d.success && Array.isArray(d.data)) {
-          const users: any[] = d.data;
+        const users: any[] = d.data || d;
+        if (Array.isArray(users)) {
           const now = new Date();
           setStats({
             totalUsers: users.length,

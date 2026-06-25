@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import { toAbsoluteUrl } from "@/lib/image-utils";
 import { useAuth } from "@/lib/use-auth";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -109,6 +111,9 @@ export function ChatClient({ characterId }: { characterId: string }) {
   const [greetingDismissed, setGreetingDismissed] = useState(false);
   const [memories, setMemories] = useState<MemoryData[]>([]);
   const [fetchingMemories, setFetchingMemories] = useState(false);
+  const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
+  const [editMemoryContent, setEditMemoryContent] = useState("");
+  const [memoryActionLoading, setMemoryActionLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<"restart" | "stats" | "export" | "memories" | "background" | "editAiMessage" | null>(null);
   const [editingMessage, setEditingMessage] = useState<MessageData | null>(null);
@@ -134,6 +139,67 @@ export function ChatClient({ characterId }: { characterId: string }) {
 
   const hasGreeting = !!character?.greeting;
   const showGreeting = hasGreeting && messages.length === 0 && !greetingDismissed;
+
+  // ── Memory operations ──
+  const loadMemories = async () => {
+    if (!token || !characterId) return;
+    setFetchingMemories(true);
+    try {
+      const r = await fetch(`/api/chat/${characterId}/memories`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const d = await r.json();
+      if (d.success) setMemories(d.data ?? []);
+    } catch {
+      // silently fail
+    }
+    setFetchingMemories(false);
+  };
+
+  const handleUpdateMemory = async (memoryId: string, content: string) => {
+    if (!token || !characterId) return;
+    setMemoryActionLoading(true);
+    try {
+      const r = await fetch(`/api/chat/${characterId}/memories/${memoryId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ content }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        setMemories((prev) =>
+          prev.map((m) => (m.id === memoryId ? { ...m, content: d.data.content } : m))
+        );
+        setEditingMemoryId(null);
+        setEditMemoryContent("");
+      }
+    } catch {
+      // silently fail
+    }
+    setMemoryActionLoading(false);
+  };
+
+  const handleDeleteMemory = async (memoryId: string) => {
+    if (!token || !characterId) return;
+    if (!confirm("确定要删除这条记忆吗？此操作不可恢复。")) return;
+    setMemoryActionLoading(true);
+    try {
+      const r = await fetch(`/api/chat/${characterId}/memories/${memoryId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const d = await r.json();
+      if (d.success) {
+        setMemories((prev) => prev.filter((m) => m.id !== memoryId));
+      }
+    } catch {
+      // silently fail
+    }
+    setMemoryActionLoading(false);
+  };
 
   // ── Redirect unauthenticated users ──
   useEffect(() => {
@@ -366,6 +432,11 @@ export function ChatClient({ characterId }: { characterId: string }) {
 
   // ── Rewrite: AI message → open edit modal ──
   const handleRewriteAi = useCallback((msg: MessageData) => {
+    // 拦截临时 ID，防止未落库消息进入编辑
+    if (msg.id.startsWith("ai-") || msg.id.startsWith("temp-") || msg.id.startsWith("greeting-")) {
+      console.warn("[ChatClient] Cannot rewrite temporary message:", msg.id);
+      return;
+    }
     setEditingMessage(msg);
     setActiveModal("editAiMessage");
   }, []);
@@ -380,6 +451,11 @@ export function ChatClient({ characterId }: { characterId: string }) {
   // ── Save edited AI message ──
   const handleSaveAiMessage = useCallback(async (newContent: string): Promise<boolean> => {
     if (!editingMessage || !token) return false;
+    // 拦截临时 ID，防止未落库消息调用 PATCH API
+    if (editingMessage.id.startsWith("ai-") || editingMessage.id.startsWith("temp-") || editingMessage.id.startsWith("greeting-")) {
+      console.warn("[ChatClient] Cannot save temporary message:", editingMessage.id);
+      return false;
+    }
     try {
       const res = await fetch(`/api/messages/${editingMessage.id}`, {
         method: "PATCH",
@@ -498,15 +574,19 @@ export function ChatClient({ characterId }: { characterId: string }) {
   // ── Main chat layout ──
   return (
     <div className="relative flex flex-col h-dvh overflow-hidden">
-      {/* ── Background image layer ── */}
+      {/* ── Background image layer: REMOVED to prevent oversized banner distortion ── */}
+      {/*
       {backgroundUrl && (
-        <img
-          src={backgroundUrl}
+        <Image
+          src={toAbsoluteUrl(backgroundUrl)}
           alt=""
-          className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none select-none"
+          fill
+          className="object-cover z-0 pointer-events-none select-none absolute inset-0 max-h-full max-w-full"
+          sizes="100vw"
           onError={() => setBackgroundUrl(null)}
         />
       )}
+      */}
       {/* ── No full-screen overlay: readability via component-level frosted glass ── */}
       {/* ── Content layer ── */}
       <div className="relative z-[2] flex flex-col h-dvh">
@@ -533,7 +613,7 @@ export function ChatClient({ characterId }: { characterId: string }) {
               <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="1.5" y="10" width="3" height="3.5" rx="0.5"/><rect x="6" y="6.5" width="3" height="7" rx="0.5"/><rect x="10.5" y="3" width="3" height="10.5" rx="0.5"/></svg>
               统计
             </button>
-            <button onClick={async () => { setMenuOpen(false); setActiveModal("memories"); setFetchingMemories(true); try { const r = await fetch("/api/chat/" + characterId + "/memories", { headers: { Authorization: "Bearer " + token! } }); const d = await r.json(); if (d.success) setMemories(d.data ?? []); } catch {} setFetchingMemories(false); }} className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 transition-colors flex items-center gap-2.5">
+            <button onClick={async () => { setMenuOpen(false); setActiveModal("memories"); await loadMemories(); }} className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 transition-colors flex items-center gap-2.5">
               <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M7.5 2v3M10.5 5l-3 3-3-3"/><rect x="2" y="6" width="11" height="7" rx="1"/></svg>
               角色记忆
             </button>
@@ -557,10 +637,12 @@ export function ChatClient({ characterId }: { characterId: string }) {
             <div className="absolute inset-0 rounded-full bg-stone-300/40 blur-2xl scale-150" />
             <div className="relative w-24 h-24 rounded-full bg-stone-200 overflow-hidden ring-4 ring-white/80 shadow-lg">
               {character.avatarUrl ? (
-                <img
-                  src={character.avatarUrl}
+                <Image
+                  src={toAbsoluteUrl(character.avatarUrl)}
                   alt={character.name}
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
+                  sizes="96px"
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = "none";
                   }}
@@ -635,11 +717,11 @@ export function ChatClient({ characterId }: { characterId: string }) {
             <p className="text-base font-semibold text-neutral-900 text-center mb-4">{character.name}</p>
             <div className="flex items-center justify-center gap-4 mb-5">
               <div className="w-14 h-14 rounded-full bg-stone-200 overflow-hidden flex items-center justify-center ring-2 ring-stone-100">
-                {character.avatarUrl ? <img src={character.avatarUrl} alt="" className="w-full h-full object-cover" /> : <span className="text-stone-400 text-xl">{(character.name ?? "?").charAt(0)}</span>}
+                {character.avatarUrl ? <Image src={toAbsoluteUrl(character.avatarUrl)} alt="" fill className="object-cover" sizes="56px" /> : <span className="text-stone-400 text-xl">{(character.name ?? "?").charAt(0)}</span>}
               </div>
               <span className="text-2xl">{String.fromCodePoint(0x1F493)}</span>
               <div className="w-14 h-14 rounded-full bg-stone-200 overflow-hidden flex items-center justify-center ring-2 ring-stone-100">
-                {character.avatarUrl ? <img src={character.avatarUrl} alt="" className="w-full h-full object-cover" /> : <span className="text-stone-400 text-xl">{(character.name ?? "?").charAt(0)}</span>}
+                {character.avatarUrl ? <Image src={toAbsoluteUrl(character.avatarUrl)} alt="" fill className="object-cover" sizes="56px" /> : <span className="text-stone-400 text-xl">{(character.name ?? "?").charAt(0)}</span>}
               </div>
             </div>
             <p className="text-xs text-stone-400 text-center mb-5">
@@ -672,12 +754,20 @@ export function ChatClient({ characterId }: { characterId: string }) {
 
       {/* ── Memories Modal ── */}
       {activeModal === "memories" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setActiveModal(null)} />
-          <div className="relative z-10 w-full max-w-sm max-h-[70vh] rounded-2xl bg-white shadow-xl flex flex-col">
-            <div className="p-5 border-b border-stone-100">
-              <p className="text-base font-semibold text-neutral-900">角色记忆</p>
-              <p className="text-xs text-stone-400 mt-1">{memories.length} 条记忆 · 容量 {memory.limit} 条</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          <div className="absolute inset-0 bg-black/40" onClick={() => { setActiveModal(null); setEditingMemoryId(null); setEditMemoryContent(""); }} />
+          <div className="relative z-10 w-full max-w-sm max-h-[80vh] rounded-2xl bg-white shadow-xl flex flex-col">
+            <div className="p-5 border-b border-stone-100 flex items-center justify-between">
+              <div>
+                <p className="text-base font-semibold text-neutral-900">角色记忆</p>
+                <p className="text-xs text-stone-400 mt-1">{memories.length} 条记忆 · 容量 {memory.limit} 条</p>
+              </div>
+              <button
+                onClick={() => { setActiveModal(null); setEditingMemoryId(null); setEditMemoryContent(""); }}
+                className="p-1.5 rounded-lg hover:bg-stone-100 transition-colors text-stone-400"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+              </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
               {fetchingMemories ? (
@@ -690,28 +780,90 @@ export function ChatClient({ characterId }: { characterId: string }) {
               ) : (
                 <div className="space-y-2.5">
                   {memories.map((mem) => (
-                    <div key={mem.id} className="rounded-xl border border-stone-100 bg-stone-50/50 p-3">
-                      <div className="flex items-start gap-2.5">
-                        <span className="mt-0.5 shrink-0 text-sm">
-                          {mem.category === "FACT" ? "📋" : mem.category === "PREFERENCE" ? "❤️" : "📅"}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-neutral-800 leading-relaxed">{mem.content.replace(/^用户/, "你")}</p>
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <span className="text-[10px] text-stone-400">{mem.category === "FACT" ? "事实" : mem.category === "PREFERENCE" ? "偏好" : "事件"}</span>
-                            <div className="flex-1 h-1 bg-stone-100 rounded-full overflow-hidden">
-                              <div className="h-full bg-amber-400 rounded-full" style={{ width: (mem.importance * 100) + "%" }} />
-                            </div>
+                    <div
+                      key={mem.id}
+                      className="group relative rounded-xl border border-stone-100 bg-stone-50/50 p-3 overflow-hidden"
+                    >
+                      {editingMemoryId === mem.id ? (
+                        <div className="space-y-2">
+                          <textarea
+                            value={editMemoryContent}
+                            onChange={(e) => setEditMemoryContent(e.target.value)}
+                            className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-neutral-800 leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-neutral-900/10"
+                            rows={3}
+                            disabled={memoryActionLoading}
+                          />
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => { setEditingMemoryId(null); setEditMemoryContent(""); }}
+                              disabled={memoryActionLoading}
+                              className="px-3 py-1.5 rounded-lg text-xs font-medium text-stone-500 hover:bg-stone-100 transition-colors disabled:opacity-50"
+                            >
+                              取消
+                            </button>
+                            <button
+                              onClick={() => handleUpdateMemory(mem.id, editMemoryContent)}
+                              disabled={memoryActionLoading || !editMemoryContent.trim()}
+                              className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-neutral-900 hover:bg-neutral-800 transition-colors disabled:opacity-50"
+                            >
+                              {memoryActionLoading ? "保存中…" : "保存"}
+                            </button>
                           </div>
                         </div>
-                      </div>
+                      ) : (
+                        <>
+                          <div className="flex items-start gap-2.5">
+                            <span className="mt-0.5 shrink-0 text-sm">⏳</span>
+                            <div className="flex-1 min-w-0 pr-16">
+                              <p className="text-sm text-neutral-800 leading-relaxed">{mem.content.replace(/^用户/, "你")}</p>
+                              <div className="flex items-center gap-2 mt-1.5">
+                                <span className="text-[10px] text-stone-400">
+                                  {new Date(mem.createdAt).toLocaleDateString('zh-CN')} {new Date(mem.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                                <div className="flex-1 h-1 bg-stone-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-amber-400 rounded-full" style={{ width: (mem.importance * 100) + "%" }} />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          {/* 侧滑操作面板 — 桌面端 hover 显示，移动端点击展开 */}
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity sm:flex">
+                            <button
+                              onClick={() => { setEditingMemoryId(mem.id); setEditMemoryContent(mem.content); }}
+                              className="p-1.5 rounded-lg hover:bg-stone-200/60 text-stone-400 hover:text-stone-600 transition-colors"
+                              title="编辑"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 2.5l5 5-8 8H2.5v-3l8-8z"/></svg>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteMemory(mem.id)}
+                              className="p-1.5 rounded-lg hover:bg-red-50 text-stone-400 hover:text-red-500 transition-colors"
+                              title="删除"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 4h11M5.5 4v-1a1 1 0 011-1h3a1 1 0 011 1v1M6.5 7v5M9.5 7v5"/></svg>
+                            </button>
+                          </div>
+                          {/* 移动端常驻操作按钮 */}
+                          <div className="flex items-center justify-end gap-1 mt-2 sm:hidden">
+                            <button
+                              onClick={() => { setEditingMemoryId(mem.id); setEditMemoryContent(mem.content); }}
+                              className="px-2.5 py-1 rounded-md text-xs font-medium text-stone-500 bg-stone-100 hover:bg-stone-200 transition-colors"
+                            >
+                              编辑
+                            </button>
+                            <button
+                              onClick={() => handleDeleteMemory(mem.id)}
+                              className="px-2.5 py-1 rounded-md text-xs font-medium text-red-500 bg-red-50 hover:bg-red-100 transition-colors"
+                            >
+                              删除
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
-            </div>
-            <div className="p-3 border-t border-stone-100">
-              <button onClick={() => setActiveModal(null)} className="w-full rounded-lg bg-neutral-900 py-2.5 text-sm font-medium text-stone-50 hover:bg-neutral-800 transition-colors">关闭</button>
             </div>
           </div>
         </div>
@@ -730,7 +882,7 @@ export function ChatClient({ characterId }: { characterId: string }) {
               {/* 预览区 */}
               <div className="relative w-full h-40 rounded-xl border border-stone-200 overflow-hidden bg-stone-50">
                 {backgroundUrl ? (
-                  <img src={backgroundUrl} alt="背景预览" className="w-full h-full object-cover" />
+                  <Image src={toAbsoluteUrl(backgroundUrl)} alt="背景预览" fill className="object-cover" sizes="100vw" />
                 ) : (
                   <div className="flex items-center justify-center h-full text-stone-300 text-sm">默认背景</div>
                 )}
@@ -884,7 +1036,7 @@ function BottomNav({ current }: { current: "characters" | "chat" | "shop" | "me"
   const tabs = [
     { key: "characters", label: "角色", href: "/characters", icon: CharactersIcon },
     { key: "chat", label: "聊天", href: "/chat", icon: ChatIcon },
-    { key: "shop", label: "商店", href: "/shop", icon: ShopIcon },
+    { key: "shop", label: "广场", href: "/plaza", icon: ShopIcon },
     { key: "me", label: "我的", href: "/me", icon: MeIcon },
   ] as const;
 

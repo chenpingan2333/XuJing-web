@@ -43,6 +43,9 @@ export async function middleware(req: NextRequest) {
     );
   }
 
+  // 广场页面 GET 请求公开访问（浏览无需登录）
+  if (pathname === "/api/plaza" && req.method === "GET") return NextResponse.next();
+
   if (isPublicRoute(pathname)) return NextResponse.next();
 
   // ─── Auth required ───

@@ -26,6 +26,16 @@ const nextConfig: NextConfig = {
   },
 
   serverExternalPackages: ["ioredis", "jose", "postgres"],
+
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "43.138.193.173" },
+      { protocol: "http", hostname: "43.138.193.173" },
+      { protocol: "http", hostname: "127.0.0.1", port: "3003" },
+    ],
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 86400,
+  },
 };
 
 export default nextConfig;

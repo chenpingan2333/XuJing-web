@@ -1,24 +1,13 @@
-/**
- * POST /api/upload — image upload (local filesystem, TODO: cloud upload-on-consent)
- *
- * Accepts multipart/form-data with a single file field "file".
- * Stores to public/uploads/ and returns the public URL.
- * Limits: 10 MB max, jpg/png/webp only.
- * TODO: add cloud upload after user consent (planned for midnight deployment)
- */
-
 import { jsonOk, jsonErr } from "../_base/response";
 import { requireAuth } from "../_base/auth";
 import { rateLimit } from "../_base/rate-limit";
-import { writeFile, mkdir } from "node:fs/promises";
+import { createWriteStream } from "node:fs";
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-// Upload files to /var/www/xujing/public/uploads/ which is served directly by Nginx.
-// This avoids the Next.js standalone issue where runtime-added files in public/ are not served.
-// Nginx location /uploads/ aliases to this directory.
 const UPLOAD_DIR = "/var/www/xujing/public/uploads";
 
 export async function POST(req: Request) {
@@ -56,12 +45,30 @@ export async function POST(req: Request) {
 
     const ext = path.extname(file.name) || ".png";
     const filename = crypto.randomUUID() + ext;
-    const buffer = Buffer.from(await file.arrayBuffer());
-    await writeFile(path.join(UPLOAD_DIR, filename), buffer);
+    const targetPath = path.join(UPLOAD_DIR, filename);
+
+    // 使用 ReadableStream 异步流切片吸入，彻底释放主线程事件循环，根治 Pending 超时
+    const writeStream = createWriteStream(targetPath);
+    const reader = file.stream().getReader();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        await new Promise<void>((resolve, reject) => {
+          writeStream.write(Buffer.from(value), (err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+      }
+    }
+    
+    await new Promise<void>((resolve) => writeStream.end(resolve));
 
     return jsonOk({ url: `${process.env.ASSET_PREFIX || ""}/uploads/` + filename }, 201);
   } catch (err) {
-    console.error("[upload] Local upload failed:", err instanceof Error ? err.message : String(err));
+    console.error("[upload] Stream local upload failed:", err instanceof Error ? err.message : String(err));
     return jsonErr("Upload failed. Please try again.", 500);
   }
 }

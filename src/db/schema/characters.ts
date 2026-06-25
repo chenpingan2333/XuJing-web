@@ -29,6 +29,11 @@ export const characters = pgTable(
     mainPrompt: text("main_prompt"),
     postHistoryInstructions: text("post_history_instructions"),
     extraFields: jsonb("extra_fields"),
+    oneLineIntro: text("one_line_intro"),
+    isPublic: boolean("is_public").notNull().default(false),
+    publicityFields: jsonb("publicity_fields"),
+    fakeChats: integer("fake_chats").notNull().default(100),
+    fakeLikes: integer("fake_likes").notNull().default(10),
     isOfficial: boolean("is_official").notNull().default(false),
     version: integer("version").notNull().default(1),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -41,6 +46,10 @@ export const characters = pgTable(
   (table) => ({
     userIdIdx: index("idx_characters_user_id").on(table.userId),
     isOfficialIdx: index("idx_characters_is_official").on(table.isOfficial),
+    isPublicIdx: index("idx_characters_is_public").on(table.isPublic),
+    publicActiveIdx: index("idx_characters_public_active")
+      .on(table.isPublic, table.isOfficial)
+      .where(sql`${table.deletedAt} IS NULL`),
     activeIdx: index("idx_characters_active")
       .on(table.userId)
       .where(sql`${table.deletedAt} IS NULL AND ${table.userId} IS NOT NULL`),

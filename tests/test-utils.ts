@@ -30,7 +30,7 @@ export function record(name: string, passed: boolean, detail: string) {
 export async function api<T>(
   path: string,
   options: { method?: string; body?: unknown; token?: string } = {}
-): Promise<ApiResponse<T>> {
+): Promise<ApiResponse<T> & { status: number }> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (options.token) headers["Authorization"] = "Bearer " + options.token;
   const res = await fetch(`${BASE}${path}`, {
@@ -39,7 +39,7 @@ export async function api<T>(
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
   const data = await res.json();
-  return data as ApiResponse<T>;
+  return { ...data, status: res.status } as ApiResponse<T> & { status: number };
 }
 
 export function summary(results: { name: string; passed: boolean; detail: string }[]) {

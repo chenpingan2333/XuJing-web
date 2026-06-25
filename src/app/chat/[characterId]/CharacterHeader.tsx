@@ -1,5 +1,8 @@
 "use client";
 
+import Image from "next/image";
+import { toAbsoluteUrl } from "@/lib/image-utils";
+
 interface CharacterHeaderProps {
   name: string;
   avatarUrl?: string | null;
@@ -14,14 +17,16 @@ export function CharacterHeader({ name, avatarUrl, memoryUsed, memoryLimit, onMe
 
   return (
     <div className="flex items-center gap-3 px-6 py-3 border-b border-stone-200 bg-white/60 backdrop-blur-md">
-      <div className="w-9 h-9 rounded-lg bg-stone-200 overflow-hidden flex-shrink-0">
+      <div className="relative w-9 h-9 rounded-lg bg-stone-200 overflow-hidden flex-shrink-0">
         {safeAvatar ? (
-          <img
-            src={safeAvatar}
+          <Image
+            src={toAbsoluteUrl(safeAvatar)}
             alt={safeName}
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = "none";
+            fill
+            className="object-cover"
+            sizes="36px"
+            onError={() => {
+              /* Image 组件会自动隐藏失败图片，无需手动处理 */
             }}
           />
         ) : (

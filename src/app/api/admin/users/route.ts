@@ -11,7 +11,7 @@ import { jsonOk, jsonErr } from "../../_base/response";
 import { requireAuth, guardAdmin } from "../../_base/auth";
 import { db } from "@/db";
 import { users } from "@/db/schema/users";
-import { eq, ilike, and, or } from "drizzle-orm";
+import { eq, ilike, and, or, sql } from "drizzle-orm";
 
 // ─── GET /api/admin/users — 用户列表 + 搜索 ───
 // 支持 ?q=email 模糊搜索
@@ -23,6 +23,25 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const q = url.searchParams.get("q")?.trim() ?? "";
+  const page = parseInt(url.searchParams.get("page") || "1");
+  const limit = parseInt(url.searchParams.get("limit") || "50");
+  const offset = (page - 1) * limit;
+
+  try {
+    // ✅ 使用绝对安全的 SQL 原生语法获取真实总数，防范类型错误
+    let totalCount = 0;
+    if (q) {
+      const countResult = await db
+        .select({ count: sql<number>`cast(count(*) as integer)` })
+        .from(users)
+        .where(ilike(users.email, "%" + q + "%"));
+      totalCount = countResult[0]?.count || 0;
+    } else {
+      const countResult = await db
+        .select({ count: sql<number>`cast(count(*) as integer)` })
+        .from(users);
+      totalCount = countResult[0]?.count || 0;
+    }
 
   let rows;
   if (q) {
@@ -41,7 +60,8 @@ export async function GET(req: Request) {
       .from(users)
       .where(ilike(users.email, "%" + q + "%"))
       .orderBy(users.createdAt)
-      .limit(100);
+      .limit(limit)
+      .offset(offset);
   } else {
     rows = await db
       .select({
@@ -57,10 +77,20 @@ export async function GET(req: Request) {
       })
       .from(users)
       .orderBy(users.createdAt)
-      .limit(100);
+      .limit(limit)
+      .offset(offset);
   }
 
-  return jsonOk(rows);
+    return jsonOk({
+      total: totalCount,
+      page,
+      limit,
+      users: rows
+    });
+  } catch (error) {
+    console.error("GET Users Error:", error);
+    return jsonErr("获取用户列表失败", 500);
+  }
 }
 
 // ─── PATCH /api/admin/users — 管理操作 ───
@@ -103,13 +133,25 @@ export async function PATCH(req: Request) {
     case "grant_vip": {
       const days = Number(value);
       if (![2, 7, 30, 90, 365].includes(days)) return jsonErr("Invalid VIP duration", 400);
+      
+      // 查询用户当前VIP状态
+      const user = await db.select({ vipExpiresAt: users.vipExpiresAt }).from(users).where(eq(users.id, userId)).limit(1);
       const now = new Date();
-      const expiresAt = new Date(now.getTime() + days * 86400 * 1000);
+      
+      let newExpiresAt: Date;
+      if (user[0]?.vipExpiresAt && user[0].vipExpiresAt > now) {
+        // 当前VIP未过期，在现有到期时间基础上叠加
+        newExpiresAt = new Date(user[0].vipExpiresAt.getTime() + days * 86400 * 1000);
+      } else {
+        // 当前VIP已过期或不存在，从当前时间开始计算
+        newExpiresAt = new Date(now.getTime() + days * 86400 * 1000);
+      }
+      
       await db
         .update(users)
-        .set({ vipExpiresAt: expiresAt, hasPurchasedVip: true })
+        .set({ vipExpiresAt: newExpiresAt, hasPurchasedVip: true })
         .where(eq(users.id, userId));
-      return jsonOk({ action, userId, vipExpiresAt: expiresAt.toISOString(), days });
+      return jsonOk({ action, userId, vipExpiresAt: newExpiresAt.toISOString(), days });
     }
 
     case "revoke_vip": {

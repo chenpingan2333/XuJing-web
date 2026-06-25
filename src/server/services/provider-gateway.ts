@@ -27,57 +27,20 @@ export class ProviderGateway {
   /**
    * 娴佸紡鑱婂ぉ 鈥?缁熶竴鍏ュ彛
    */
-  async *chat(
-    config: ApiConfig,
-    messages: ChatMessage[],
-    systemPrompt: string
-  ): AsyncGenerator<ChatEvent> {
-    const apiKey = await decryptApiKey(config.apiKeyEncrypted);
-
-    const allMessages: ChatMessage[] = [
-      { role: "system", content: systemPrompt },
-      ...messages,
-    ];
-
-    switch (config.platform) {
-      case "OPENAI":
-      case "CUSTOM_OPENAI":
-      case "DEEPSEEK":
-      case "GROK":
-        yield* this._openaiCompatible(this._safeUrl(config.apiUrl, config.platform), apiKey, config.modelId, allMessages);
-        break;
-
-      case "ANTHROPIC":
-      case "CUSTOM_ANTHROPIC":
-        yield* this._anthropic(config.apiUrl, apiKey, config.modelId, allMessages);
-        break;
-
-      case "GEMINI":
-      case "CUSTOM_GEMINI":
-        yield* this._gemini(config.apiUrl, apiKey, config.modelId, allMessages);
-        break;
-
-      default:
-        // Fallback: treat unknown platforms as OpenAI-compatible
-        yield* this._openaiCompatible(this._safeUrl(config.apiUrl, config.platform), apiKey, config.modelId, allMessages);
-    }
-  }
-
   /**
-   * VIP 平台模型——专属路由
-   *
-   * 浠呮湇鍔＄璋冪敤銆侫PI Key 瀹屽叏鏉ヨ嚜鐜鍙橀噺 PLATFORM_API_KEY锛?   * 涓嶇粡杩囨暟鎹簱鍔犲瘑灞傦紝涓嶇粡杩囦换浣曚腑闂翠欢浼犻€掞紝姘镐笉鏆撮湶缁欏墠绔€?   * 鍓嶇缁熶竴鏄剧ず涓?VIP涓撳睘妯″瀷"锛屼笉鏆撮湶瀹為檯妯″瀷鍚嶇О銆?   */
-  async *vipPlatformChat(
+   * 流式聊天 — 会员制单轨架构，统一使用平台环境变量
+   */
+  async *chat(
     messages: ChatMessage[],
     systemPrompt: string
   ): AsyncGenerator<ChatEvent> {
     const env = getEnv();
-    const apiUrl = env.PLATFORM_API_URL;
+    const apiUrl = env.PLATFORM_API_URL ?? "https://api.deepseek.com";
     const apiKey = env.PLATFORM_API_KEY ?? "";
-    const modelId = env.PLATFORM_MODEL_ID;
+    const modelId = env.PLATFORM_MODEL_ID ?? "deepseek-v4-flash";
 
     if (!apiKey) {
-      yield { type: "error", message: "骞冲彴妯″瀷鏆備笉鍙敤锛岃绋嶅悗閲嶈瘯" };
+      yield { type: "error", message: "平台模型暂不可用，请稍后重试" };
       return;
     }
 

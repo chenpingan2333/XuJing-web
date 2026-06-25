@@ -86,12 +86,12 @@ async function run() {
   const html = await (await fetch(`${BASE}/api-connections`)).text();
   record("A7: Shows 叙境平台专属模型", html.includes("叙境平台专属模型"), "VIP platform card text found in page source");
   record("A7: No DeepSeek V4 Flash", !html.includes("DeepSeek V4 Flash"), "DeepSeek V4 Flash not exposed");
-  record("A7: No platform model name leak", !html.includes("deepseek-chat"), "Underlying model ID not in page");
+  record("A7: No platform model name leak", !html.includes("deepseek-chat") === true, "Underlying model ID not in page");
 
   // ——— ACCEPTANCE 8: Security audit ———
   console.log("\n8. Security audit");
   const devCheck = await api("/api/auth/dev/token", { method: "POST", body: { email: "nonexistent@x.com" } });
-  record("A8: dev/token route exists", devCheck.status === 404 || devCheck.error?.includes("Not found") || devCheck.error?.includes("User"), "Route exists, responds to requests");
+  record("A8: dev/token route exists", devCheck.status === 404 || !!(devCheck.error && (devCheck.error.includes("Not found") || devCheck.error.includes("User"))), "Route exists, responds to requests");
   record("A8: dev/token guarded by NODE_ENV", true, "Route-level check: NODE_ENV !== 'development' → 403");
   record("A8: Risk — devLogin no secondary guard", true, "devLogin in auth.service has no env check; risk depends on correct NODE_ENV config");
 

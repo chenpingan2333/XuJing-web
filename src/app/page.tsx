@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import TermsModal from "@/components/TermsModal";
 
 export default function WelcomePage() {
@@ -16,10 +17,13 @@ export default function WelcomePage() {
   return (
     <div className="flex h-dvh flex-col items-center justify-center bg-stone-50 px-6 select-none">
       {/* Logo */}
-      <img
+      <Image
         src="/logo.png"
         alt="叙境"
-        className="w-28 h-28 object-contain opacity-90"
+        width={112}
+        height={112}
+        priority
+        className="object-contain opacity-90"
       />
 
       {/* Tagline */}

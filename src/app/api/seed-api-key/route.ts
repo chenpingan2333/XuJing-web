@@ -1,35 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "../_base/auth";
-import { apiConfigService } from "@/server/services/api-config.service";
 
+/**
+ * Seed API Key 路由 — 已禁用
+ * 免费用户不再分发平台共享 Key，必须自行配置 API Key。
+ */
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
   if (auth instanceof Response) return auth;
 
-  try {
-    const existing = await apiConfigService.listConfigs(auth.userId);
-    const dup = existing.find((c: { name: string }) => c.name === "DeepSeek");
-
-    if (dup) {
-      await apiConfigService.updateConfig(auth.userId, dup.id, {
-        apiKey: "sk-9d7c2558fad9451eb444601b0b7cc779",
-        apiUrl: "https://api.deepseek.com",
-        modelId: "deepseek-v4-flash",
-      });
-      return NextResponse.json({ status: "UPDATED", id: dup.id });
-    }
-
-    const config = await apiConfigService.createConfig(auth.userId, {
-      name: "DeepSeek",
-      platform: "DEEPSEEK",
-      apiUrl: "https://api.deepseek.com",
-      apiKey: "sk-9d7c2558fad9451eb444601b0b7cc779",
-      modelId: "deepseek-v4-flash",
-      isDefault: existing.length === 0,
-    });
-
-    return NextResponse.json({ status: "CREATED", id: config.id });
-  } catch (err) {
-    return NextResponse.json({ status: "ERROR", message: err instanceof Error ? err.message : String(err) }, { status: 500 });
-  }
+  return NextResponse.json(
+    { status: "DISABLED", message: "请前往 API 连接页面配置您自己的 API Key" },
+    { status: 403 }
+  );
 }

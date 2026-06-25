@@ -11,7 +11,18 @@ export class MemoryRepository {
   }
 
   async findByCharacter(characterId: string, userId: string, limit = 20) {
-    return db.select().from(memories).where(and(eq(memories.characterId, characterId), eq(memories.userId, userId))).orderBy(desc(memories.importance)).limit(limit);
+    return db
+      .select()
+      .from(memories)
+      .where(
+        and(
+          eq(memories.characterId, characterId),
+          eq(memories.userId, userId),
+          sql`${memories.deletedAt} IS NULL` // 🔴 核心：过滤掉已被软删除的重置记忆
+        )
+      )
+      .orderBy(desc(memories.createdAt)) // 🔴 核心：变更为纯粹按时间顺序排序
+      .limit(limit);
   }
 
   async countByCharacter(characterId: string, userId: string) {
@@ -51,6 +62,20 @@ export class MemoryRepository {
     }
   }
 
+  /** 🔴 新增：精准软删除"特定用户"与"特定角色"的对话记忆，防止误杀其他用户数据 */
+  async deleteByUserAndCharacter(characterId: string, userId: string) {
+    return db
+      .update(memories)
+      .set({ deletedAt: new Date() })
+      .where(
+        and(
+          eq(memories.characterId, characterId),
+          eq(memories.userId, userId),
+          sql`${memories.deletedAt} IS NULL`
+        )
+      );
+  }
+
   async deleteByCharacter(characterId: string, options: { actorId?: string; reason?: string } = {}) {
     const result = await assetService.softDeleteMemoriesByCharacter(characterId, {
       actorId: options.actorId ?? SYSTEM_ACTOR_ID,
@@ -60,6 +85,38 @@ export class MemoryRepository {
       throw new Error(result.error ?? 'Failed to soft delete memories by character');
     }
     return result;
+  }
+
+  /** 更新单条记忆内容 */
+  async updateMemory(id: string, userId: string, content: string) {
+    const [result] = await db
+      .update(memories)
+      .set({ content })
+      .where(
+        and(
+          eq(memories.id, id),
+          eq(memories.userId, userId),
+          sql`${memories.deletedAt} IS NULL`
+        )
+      )
+      .returning();
+    return result ?? null;
+  }
+
+  /** 按 ID 软删除单条记忆（带用户隔离） */
+  async deleteMemoryById(id: string, userId: string) {
+    const [result] = await db
+      .update(memories)
+      .set({ deletedAt: new Date() })
+      .where(
+        and(
+          eq(memories.id, id),
+          eq(memories.userId, userId),
+          sql`${memories.deletedAt} IS NULL`
+        )
+      )
+      .returning();
+    return result ?? null;
   }
 }
 

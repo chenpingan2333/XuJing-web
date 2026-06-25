@@ -2,18 +2,16 @@
  * ChatService — Phase 7.2 Character Integration
  *
  * 职责: 消息发送、重新生成、继续回复、建议回复。
- * VIP 无自备 API key 时使用平台模型。
+ * 会员制单轨架构：会员使用平台模型，非会员拒绝访问。
  * Phase 7.2: 接入 character.personality / scenario / dialogueExamples / nickname / greeting。
  */
 
 import { characterRepository } from "../repositories/character.repository";
 import { messageRepository } from "../repositories/message.repository";
 import { memoryRepository } from "../repositories/memory.repository";
-import { apiConfigRepository } from "../repositories/api-config.repository";
 import { userRepository } from "../repositories/user.repository";
 import { providerGateway, type ChatEvent } from "./provider-gateway";
 import { memoryEngine, memoryRetriever } from "./memory-engine";
-import type { ApiConfig } from "@/db/schema/api-configs";
 import type { Message } from "@/db/schema/messages";
 
 const DEFAULT_SYSTEM_PROMPT = `你是一个高保真角色扮演引擎。你的唯一任务是以第一人称、完全沉浸地扮演角色卡中定义的角色。
@@ -84,27 +82,11 @@ export class ChatService {
       return;
     }
 
-    const isVip = user.vipExpiresAt && new Date(user.vipExpiresAt) > new Date();
+    const isMember = user.vipExpiresAt && new Date(user.vipExpiresAt) > new Date();
 
-    // VIP 无自备 API Key → 使用平台专属模型
-    // 模型名不暴露给前端，统一显示"叙境专属模型"
-    let regenUseVipPlatform = false;
-    let config: ApiConfig | null = null;
-
-    if (isVip) {
-      const userConfig = await apiConfigRepository.findActive(userId);
-      if (userConfig) {
-        config = userConfig;
-      } else {
-        regenUseVipPlatform = true;
-      }
-    } else {
-      const userConfig = await apiConfigRepository.findActive(userId);
-      if (!userConfig) {
-        yield { type: "error", message: "未配置 API 接口，请前往 API 连接页面配置" };
-        return;
-      }
-      config = userConfig;
+    // 会员制单轨架构：非会员拒绝访问
+    if (!isMember) {
+      throw new Error("ACCESS_DENIED");
     }
 
     const memories = await memoryRetriever.retrieve(characterId, userId, content, MEMORY_TOP_K);
@@ -194,9 +176,7 @@ export class ChatService {
 
     let fullResponse = "";
     try {
-      const chatStream = regenUseVipPlatform
-        ? providerGateway.vipPlatformChat(chatMessages, systemPrompt)
-        : providerGateway.chat(config!, chatMessages, systemPrompt);
+      const chatStream = providerGateway.chat(chatMessages, systemPrompt);
       for await (const event of chatStream) {
         if (event.type === "delta") {
           fullResponse += event.content;
@@ -219,7 +199,7 @@ export class ChatService {
           console.log("[MEMORY] extractAndPersist start", { characterId, messageCount: chatMessages.length });
           try {
             console.log("[MEMORY] engine entered");
-            await memoryEngine.extractAndPersist(characterId, userId, 20, config ?? undefined);
+            await memoryEngine.extractAndPersist(characterId, userId, 20);
             console.log("[MEMORY] extractAndPersist finished");
           } catch (error) {
             console.error("[MEMORY] extractAndPersist error", error);
@@ -251,23 +231,11 @@ export class ChatService {
     }
 
     const user = await userRepository.findById(userId);
-    const isVip = user?.vipExpiresAt && new Date(user.vipExpiresAt) > new Date();
-    const userConfig = await apiConfigRepository.findActive(userId);
+    const isMember = user?.vipExpiresAt && new Date(user.vipExpiresAt) > new Date();
 
-    let regenUseVipPlatform = false;
-    let regenConfig: ApiConfig | null = null;
-    if (isVip) {
-      if (userConfig) {
-        regenConfig = userConfig ?? null;
-      } else {
-        regenUseVipPlatform = true;
-      }
-    } else {
-      regenConfig = userConfig ?? null;
-    }
-    if (!regenUseVipPlatform && !regenConfig) {
-      yield { type: "error", message: "未配置 API 接口" };
-      return;
+    // 会员制单轨架构：非会员拒绝访问
+    if (!isMember) {
+      throw new Error("ACCESS_DENIED");
     }
 
     const historyMessages = await messageRepository.findHistory(characterId, userId, HISTORY_FETCH_LIMIT);
@@ -303,10 +271,10 @@ export class ChatService {
       content: m.content,
     }));
 
-
+    const fullSystemPrompt = systemPrompt;
 
     // ─── P1-C: Token-Aware Context Budget (same as sendMessage) ───
-    const sysLen = systemPrompt.length;
+    const sysLen = fullSystemPrompt.length;
     const msgChars = chatMessages.reduce((sum, m) => sum + m.content.length, 0);
     const reservedForReply = 4000;
 
@@ -333,9 +301,7 @@ export class ChatService {
 
     let fullResponse = "";
     try {
-      const chatStream = regenUseVipPlatform
-        ? providerGateway.vipPlatformChat(chatMessages, systemPrompt)
-        : providerGateway.chat(regenConfig!, chatMessages, systemPrompt);
+      const chatStream = providerGateway.chat(chatMessages, fullSystemPrompt);
       for await (const event of chatStream) {
         if (event.type === "delta") {
           fullResponse += event.content;
@@ -375,21 +341,12 @@ export class ChatService {
     if (!character) return "";
 
     const user = await userRepository.findById(userId);
-    const isVip = user?.vipExpiresAt && new Date(user.vipExpiresAt) > new Date();
-    const userConfig = await apiConfigRepository.findActive(userId);
+    const isMember = user?.vipExpiresAt && new Date(user.vipExpiresAt) > new Date();
 
-    let sugUseVipPlatform = false;
-    let sugConfig: ApiConfig | null = null;
-    if (isVip) {
-      if (userConfig) {
-        sugConfig = userConfig ?? null;
-      } else {
-        sugUseVipPlatform = true;
-      }
-    } else {
-      sugConfig = userConfig ?? null;
+    // 会员制单轨架构：非会员拒绝访问
+    if (!isMember) {
+      throw new Error("ACCESS_DENIED");
     }
-    if (!sugUseVipPlatform && !sugConfig) return "";
 
     const historyMessages = await messageRepository.findHistory(characterId, userId, 10);
     const lastUserMessage =
@@ -397,7 +354,7 @@ export class ChatService {
         .filter(m => m.role === "USER")
         .at(-1)?.content ?? "";
     const memories = await memoryRetriever.retrieve(characterId, userId, lastUserMessage, MEMORY_TOP_K);
-    const memoryBlock = memories.length > 0 
+    const memoryBlock = memories.length > 0
       ? "\n\n" + MEMORY_HEADER + "\n" + memories.map(m => "- " + m.content).join("\n")
       : "";
 
@@ -408,7 +365,6 @@ export class ChatService {
       scenario: character.scenario,
       dialogueExamples: character.dialogueExamples as string | null,
       nickname: character.nickname,
-      
       name: character.name,
       greeting: character.greeting,
       extraFields: character.extraFields as Record<string, unknown> | null,
@@ -425,13 +381,15 @@ export class ChatService {
       content: "请根据以上对话历史，以用户（我）的身份生成一条简短自然的回复建议，直接输出回复内容，不要加任何前缀或解释。",
     });
 
-
+    let fullSystemPrompt = systemPrompt;
+    if (memories.length > 0) {
+      fullSystemPrompt += "\n\n" + MEMORY_HEADER + "\n";
+      for (const mem of memories) fullSystemPrompt += "- " + mem.content + "\n";
+    }
 
     let suggestion = "";
     try {
-      const sugStream = sugUseVipPlatform
-        ? providerGateway.vipPlatformChat(chatMessages, systemPrompt)
-        : providerGateway.chat(sugConfig!, chatMessages, systemPrompt);
+      const sugStream = providerGateway.chat(chatMessages, fullSystemPrompt);
       for await (const event of sugStream) {
         if (event.type === "delta") suggestion += event.content;
         else if (event.type === "error") return "";

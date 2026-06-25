@@ -13,6 +13,12 @@ export async function PATCH(
 
   const { messageId } = await params;
 
+  // 防御性校验：拦截前端临时 ai-{timestamp} 非法 UUID
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUID_RE.test(messageId)) {
+    return jsonErr("Invalid messageId format", 400);
+  }
+
   let body: { content?: string };
   try {
     body = await req.json();
