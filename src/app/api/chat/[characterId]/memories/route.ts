@@ -32,7 +32,7 @@ export async function GET(
   return jsonOk(memories.map((m) => ({
     id: m.id,
     content: m.content,
-    category: m.category,
+    category: (body.category as any) || "FACT",
     importance: Number(m.importance ?? 0),
     createdAt: m.createdAt,
   })));
@@ -75,14 +75,14 @@ export async function POST(
     characterId,
     userId: auth.userId,
     content: body.content,
-    category: body.category || "general",
+    category: (body.category as any) || "FACT",
     importance: body.importance || 0,
   });
 
   return jsonOk({
     id: memory.id,
     content: memory.content,
-    category: memory.category,
+    category: (body.category as any) || "FACT",
     importance: Number(memory.importance ?? 0),
     createdAt: memory.createdAt,
   });
